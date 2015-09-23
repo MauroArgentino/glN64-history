@@ -1,131 +1,89 @@
 #ifndef TEXTURES_H
 #define TEXTURES_H
 
-#include <windows.h>
 #include <gl/gl.h>
 #include "convert.h"
-#include "RDP.h"
 
 struct CachedTexture
 {
 	GLuint	glName;
-	DWORD	address;
-	DWORD	crc;
-	float	fulS, fulT;
-	WORD	ulS, ulT, lrS, lrT;
-	BYTE	maskS, maskT;
-	BOOL	clampS, clampT;
-	BOOL	mirrorS, mirrorT;
-	WORD	line;
-	WORD	size;
-	WORD	format;
-	WORD	tMem;
-	BYTE	palette;
-	WORD	width, height;			// N64 width and height
-	WORD	clampWidth, clampHeight;// Size to clamp to
-	WORD	realWidth, realHeight;	// Actual texture size
-	FLOAT	scaleS, scaleT;			// Scale to map to 0.0-1.0 and scale from shift
-	FLOAT	offsetScaleS, offsetScaleT;// Scale to map to 0.0-1.0
-	DWORD	textureBytes;
+	u32		address;
+	u32		crc;
+//	float	fulS, fulT;
+//	WORD	ulS, ulT, lrS, lrT;
+	float	offsetS, offsetT;
+	u32		maskS, maskT;
+	u32		clampS, clampT;
+	u32		mirrorS, mirrorT;
+	u32		line;
+	u32		size;
+	u32		format;
+	u32		tMem;
+	u32		palette;
+	u32		width, height;			  // N64 width and height
+	u32		clampWidth, clampHeight;  // Size to clamp to
+	u32		realWidth, realHeight;	  // Actual texture size
+	f32		scaleS, scaleT;			  // Scale to map to 0.0-1.0
+	f32		shiftScaleS, shiftScaleT; // Scale to shift
+	u32		textureBytes;
 
 	CachedTexture	*lower, *higher;
-	DWORD	lastDList;
+	u32		lastDList;
+
+	u32		frameBufferTexture;
 };
 
 
-typedef struct
+struct TextureCache
 {
 	CachedTexture	*bottom, *top;
 
 	CachedTexture	*(current[2]);
-	DWORD			maxBytes;
-	DWORD			cachedBytes;
-	WORD			numCached;
-	DWORD			hits, misses;
+	u32				maxBytes;
+	u32				cachedBytes;
+	u32				numCached;
+	u32				hits, misses;
 	GLuint			glNoiseNames[32];
-	BOOL			enable2xSaI;
-} TextureCache;
+	//GLuint			glDummyName;
+	CachedTexture	*dummy;
+	u32				enable2xSaI, bitDepth;
+};
 
 extern TextureCache cache;
 
-inline DWORD GetNone( DWORD64 *src, WORD x, WORD i, BYTE palette )
+inline u32 pow2( u32 dim )
 {
-	return 0x00000000;
-}
-
-inline DWORD Get4b_CI( DWORD64 *src, WORD x, WORD i, BYTE palette )
-{
-	BYTE color4B;
-
-	color4B = ((BYTE*)src)[(x>>1)^(i<<1)];
-
-	if (x & 1)
-		return RDP.palette[(palette << 4) + (color4B & 0x0F)];
-	else
-		return RDP.palette[(palette << 4) + (color4B >> 4)];
-}
-
-inline DWORD Get4b_IA( DWORD64 *src, WORD x, WORD i, BYTE palette )
-{
-	BYTE color4B;
-
-	color4B = ((BYTE*)src)[(x>>1)^(i<<1)];
-
-	return IA31_ABGR8888( (x & 1) ? (color4B & 0x0F) : (color4B >> 4) );
-}
-
-inline DWORD Get4b_I( DWORD64 *src, WORD x, WORD i, BYTE palette )
-{
-	BYTE color4B;
-
-	color4B = ((BYTE*)src)[(x>>1)^(i<<1)];
-
-	return I4_ABGR8888( (x & 1) ? (color4B & 0x0F) : (color4B >> 4) );
-}
-
-inline DWORD Get8b_CI( DWORD64 *src, WORD x, WORD i, BYTE palette )
-{
-	return RDP.palette[((BYTE*)src)[x^(i<<1)]];
-}
-
-inline DWORD Get8b_IA( DWORD64 *src, WORD x, WORD i, BYTE palette )
-{
-	return IA44_ABGR8888(((BYTE*)src)[x^(i<<1)]);
-}
-
-inline DWORD Get8b_I( DWORD64 *src, WORD x, WORD i, BYTE palette )
-{
-	return I8_ABGR8888(((BYTE*)src)[x^(i<<1)]);
-}
-
-inline DWORD Get16b_RGBA( DWORD64 *src, WORD x, WORD i, BYTE palette )
-{
-	return RGBA5551_ABGR8888(swapword(((WORD*)src)[x^i]));
-}
-
-inline DWORD Get16b_IA( DWORD64 *src, WORD x, WORD i, BYTE palette )
-{
-	return IA88_ABGR8888(((WORD*)src)[x^i]);
-}
-
-inline DWORD Get32b_RGBA( DWORD64 *src, WORD x, WORD i, BYTE palette )
-{
-	return ((DWORD*)src)[x^i];
-}
-
-inline WORD pow2( WORD dim )
-{
-	WORD i = 1;
+	u32 i = 1;
 
 	while (i < dim) i <<= 1;
 
 	return i;
 }
 
+inline u32 powof( u32 dim )
+{
+	u32 num = 1;
+	u32 i = 0;
+
+	while (num < dim)
+	{
+		num <<= 1;
+		i++;
+	}
+
+	return i;
+}
+
+CachedTexture *TextureCache_AddTop();
+void TextureCache_MoveToTop( CachedTexture *newtop );
+void TextureCache_Remove( CachedTexture *texture );
+void TextureCache_RemoveBottom();
 void TextureCache_Init();
 void TextureCache_Destroy();
-void TextureCache_ActivateTexture( BYTE t );
-void TextureCache_ActivateNoise( BYTE t );
+void TextureCache_Update( u32 t );
+void TextureCache_ActivateTexture( u32 t, CachedTexture *texture );
+void TextureCache_ActivateNoise( u32 t );
+void TextureCache_ActivateDummy( u32 t );
 BOOL TextureCache_Verify();
 
 #endif

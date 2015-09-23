@@ -1,93 +1,101 @@
-#include <windows.h>
-#include <gl/gl.h>
-#include "RDP.h"
-#include "RSP.h"
 #include "OpenGL.h"
 #include "S2DEX.h"
+#include "F3D.h"
+#include "F3DEX.h"
+#include "GBI.h"
+#include "gSP.h" 
+#include "gDP.h"
+#include "RSP.h"
+#include "Types.h"
 
-// Hacked right now, always does in 4 pixel high sections
-void S2DEX_BG_Copy()
+void S2DEX_BG_1Cyc( u32 w0, u32 w1 )
+{ 
+	gSPBgRect1Cyc( w1 );
+}
+
+void S2DEX_BG_Copy( u32 w0, u32 w1 )
 {
-	ObjBg	*bgObj = (ObjBg*)(RDRAM + RSP_SegmentAddress( RSP.cmd1 ));
+	gSPBgRectCopy( w1 );
+}
 
-	WORD	imageX = bgObj->imageX >> 2;
-	WORD	imageW = bgObj->imageW >> 2;
-	WORD	frameX = bgObj->frameX >> 2;
-	WORD	frameW = bgObj->frameW >> 2;
+void S2DEX_Obj_Rectangle( u32 w0, u32 w1 )
+{
+	gSPObjRectangle( w1 );
+}
 
-	WORD	imageY = bgObj->imageY >> 2;
-	WORD	imageH = bgObj->imageH >> 2;
-	WORD	frameY = bgObj->frameY >> 2;
-	WORD	frameH = bgObj->frameH >> 2;
-  
-	DWORD	imagePtr = RSP_SegmentAddress( bgObj->imagePtr );
-	WORD	imageLoad = bgObj->imageLoad;
-	BYTE	imageFmt = bgObj->imageFmt;
-	BYTE	imageSiz = bgObj->imageSiz;
-	WORD	imagePal = bgObj->imagePal;
-	WORD	imageFlip = bgObj->imageFlip;
+void S2DEX_Obj_Sprite( u32 w0, u32 w1 )
+{
+	gSPObjSprite( w1 );
+}
 
-	RDP.textureImage.address = RSP_SegmentAddress( imagePtr );
-	RDP.textureImage.format = imageFmt;
-	RDP.textureImage.size = imageSiz;
-	RDP.textureImage.width = imageW;
-	RDP.textureImage.bpl = RDP.textureImage.width << RDP.textureImage.size >> 1;
+void S2DEX_Obj_MoveMem( u32 w0, u32 w1 )
+{
+	if (_SHIFTR( w0, 0, 16 ) == 0)
+		gSPObjMatrix( w1 );
+	else
+		gSPObjSubMatrix( w1 );
+}
 
-	RDP.tiles[7].format = imageFmt;
-	RDP.tiles[7].size = imageSiz;
-	RDP.tiles[7].line = frameW >> (4 - imageSiz);
-	if (imageSiz == IMAGE_SIZE_32b)
-		RDP.tiles[7].line >>= 1;
+void S2DEX_Select_DL( u32 w0, u32 w1 )
+{
+}
 
-	RDP.tiles[7].tMem = 0;
+void S2DEX_Obj_RenderMode( u32 w0, u32 w1 )
+{
+}
 
-	RDP.tiles[7].palette = imagePal;
-	RDP.tiles[7].clampS = 1;
-	RDP.tiles[7].clampT = 1;
-	RDP.tiles[7].mirrorS = 0;
-	RDP.tiles[7].mirrorT = 0;
-	RDP.tiles[7].maskS = 0;
-	RDP.tiles[7].maskT = 0;
-	RDP.tiles[7].shiftS = 0;
-	RDP.tiles[7].shiftT = 0;
+void S2DEX_Obj_Rectangle_R( u32 w0, u32 w1 )
+{
+}
 
-	RDP.tiles[7].ulS = frameX;
-	RDP.tiles[7].lrS = frameW - imageX - 1;
-	RDP.tiles[7].ulT = frameY;
-	RDP.tiles[7].lrT = frameY + 4;
+void S2DEX_Obj_LoadTxtr( u32 w0, u32 w1 )
+{
+	gSPObjLoadTxtr( w1 );
+}
 
-	RDP.tiles[0].format = imageFmt;
-	RDP.tiles[0].size = imageSiz;
-	RDP.tiles[0].line = frameW >> (4 - imageSiz);
-	RDP.tiles[0].tMem = 0;
+void S2DEX_Obj_LdTx_Sprite( u32 w0, u32 w1 )
+{
+	gSPObjLoadTxSprite( w1 );
+}
 
-	RDP.tiles[0].palette = imagePal;
-	RDP.tiles[0].clampS = 1;
-	RDP.tiles[0].clampT = 1;
-	RDP.tiles[0].mirrorS = 0;
-	RDP.tiles[0].mirrorT = 0;
-	RDP.tiles[0].maskS = 0;
-	RDP.tiles[0].maskT = 0;
-	RDP.tiles[0].shiftS = 0;
-	RDP.tiles[0].shiftT = 0;
+void S2DEX_Obj_LdTx_Rect( u32 w0, u32 w1 )
+{
+}
 
-	RDP.tiles[0].ulS = 0;
-	RDP.tiles[0].lrS = 319;
-	RDP.tiles[0].ulT = 0;
-	RDP.tiles[0].lrT = 3;
-	RDP.tiles[0].fulS = 0.0f;
-	RDP.tiles[0].fulT = 0.0f;
+void S2DEX_Obj_LdTx_Rect_R( u32 w0, u32 w1 )
+{
+	gSPObjLoadTxRectR( w1 );
+}
 
-	for (int y = 0; y < frameH; y += 4)
-	{
-		RSP.cmd0 = (frameX << 14) | (y << 2);
-		RSP.cmd1 = (0x07 << 24) | ((frameW - imageX - 1) << 14) | ((y + 3) << 2);
+void S2DEX_Init()
+{
+	// Set GeometryMode flags
+	GBI_InitFlags( F3DEX );
 
-		RDP_LoadTile();
-		RSP.PC[RSP.PCi] -= 8;
+	gSP.geometryMode = 0;
 
-		OGL_DrawTexturedRect( frameX, 0, y, 0, frameX + frameW - 1, imageW - 1, y + 4, 3 );
-	}
-	
-	RSP.PC[RSP.PCi] += 8;
+	GBI.PCStackSize = 18;
+
+	//          GBI Command             Command Value			Command Function
+	GBI_SetGBI( G_SPNOOP,				F3D_SPNOOP,				F3D_SPNoOp );
+	GBI_SetGBI( G_BG_1CYC,				S2DEX_BG_1CYC,			S2DEX_BG_1Cyc );
+	GBI_SetGBI( G_BG_COPY,				S2DEX_BG_COPY,			S2DEX_BG_Copy );
+	GBI_SetGBI( G_OBJ_RECTANGLE,		S2DEX_OBJ_RECTANGLE,	S2DEX_Obj_Rectangle );
+	GBI_SetGBI( G_OBJ_SPRITE,			S2DEX_OBJ_SPRITE,		S2DEX_Obj_Sprite );
+	GBI_SetGBI( G_OBJ_MOVEMEM,			S2DEX_OBJ_MOVEMEM,		S2DEX_Obj_MoveMem );
+	GBI_SetGBI( G_DL,					F3D_DL,					F3D_DList );
+	GBI_SetGBI( G_SELECT_DL,			S2DEX_SELECT_DL,		S2DEX_Select_DL );
+	GBI_SetGBI( G_OBJ_RENDERMODE,		S2DEX_OBJ_RENDERMODE,	S2DEX_Obj_RenderMode );
+	GBI_SetGBI( G_OBJ_RECTANGLE_R,		S2DEX_OBJ_RECTANGLE_R,	S2DEX_Obj_Rectangle_R );
+	GBI_SetGBI( G_OBJ_LOADTXTR,			S2DEX_OBJ_LOADTXTR,		S2DEX_Obj_LoadTxtr );
+	GBI_SetGBI( G_OBJ_LDTX_SPRITE,		S2DEX_OBJ_LDTX_SPRITE,	S2DEX_Obj_LdTx_Sprite );
+	GBI_SetGBI( G_OBJ_LDTX_RECT,		S2DEX_OBJ_LDTX_RECT,	S2DEX_Obj_LdTx_Rect );
+	GBI_SetGBI( G_OBJ_LDTX_RECT_R,		S2DEX_OBJ_LDTX_RECT_R,	S2DEX_Obj_LdTx_Rect_R );
+	GBI_SetGBI( G_MOVEWORD,				F3D_MOVEWORD,			F3D_MoveWord );
+	GBI_SetGBI( G_SETOTHERMODE_H,		F3D_SETOTHERMODE_H,		F3D_SetOtherMode_H );
+	GBI_SetGBI( G_SETOTHERMODE_L,		F3D_SETOTHERMODE_L,		F3D_SetOtherMode_L );
+	GBI_SetGBI( G_ENDDL,				F3D_ENDDL,				F3D_EndDL );
+	GBI_SetGBI( G_RDPHALF_1,			F3D_RDPHALF_1,			F3D_RDPHalf_1 );
+	GBI_SetGBI( G_RDPHALF_2,			F3D_RDPHALF_2,			F3D_RDPHalf_2 );
+	GBI_SetGBI(	G_LOAD_UCODE,			S2DEX_LOAD_UCODE,		F3DEX_Load_uCode );
 }

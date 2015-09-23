@@ -1,16 +1,18 @@
 #include <windows.h>
 #include <math.h>
 #include <gl/gl.h>
-#include <string.h>
-#include "glNintendo64().h"
+#include <stdio.h>
+#include "glN64.h"
 #include "OpenGL.h"
-#include "RSP.h"
-#include "RDP.h"
-#include "glext.h"
+#include "Types.h"
+#include "N64.h"
+#include "gSP.h"
+#include "gDP.h"
 #include "Textures.h"
 #include "Combiner.h"
+#include "VI.h"
 
-GLInfo	OGL;
+GLInfo OGL;
 
 // NV_register_combiners functions
 PFNGLCOMBINERPARAMETERFVNVPROC glCombinerParameterfvNV;
@@ -90,10 +92,6 @@ BOOL isExtensionSupported( const char *extension )
 
 void OGL_InitExtensions()
 {
-	OGL.ATIX_texture_env_combine3 = isExtensionSupported( "GL_ATIX_texture_env_combine3" );
-
-	OGL.NV_texture_env_combine4 = isExtensionSupported( "GL_NV_texture_env_combine4" );
-
 	if (OGL.NV_register_combiners = isExtensionSupported( "GL_NV_register_combiners" ))
 	{
 		glCombinerParameterfvNV = (PFNGLCOMBINERPARAMETERFVNVPROC)wglGetProcAddress( "glCombinerParameterfvNV" );
@@ -114,10 +112,12 @@ void OGL_InitExtensions()
 
 	if (OGL.ARB_multitexture = isExtensionSupported( "GL_ARB_multitexture" ))
 	{
-		glActiveTextureARB = (PFNGLACTIVETEXTUREARBPROC)wglGetProcAddress( "glActiveTextureARB" );
-		glClientActiveTextureARB = (PFNGLCLIENTACTIVETEXTUREARBPROC)wglGetProcAddress( "glClientActiveTextureARB" );
-		glMultiTexCoord2fARB = (PFNGLMULTITEXCOORD2FARBPROC)wglGetProcAddress( "glMultiTexCoord2fARB" );
+		glActiveTextureARB			= (PFNGLACTIVETEXTUREARBPROC)wglGetProcAddress( "glActiveTextureARB" );
+		glClientActiveTextureARB	= (PFNGLCLIENTACTIVETEXTUREARBPROC)wglGetProcAddress( "glClientActiveTextureARB" );
+		glMultiTexCoord2fARB		= (PFNGLMULTITEXCOORD2FARBPROC)wglGetProcAddress( "glMultiTexCoord2fARB" );
+
 		glGetIntegerv( GL_MAX_TEXTURE_UNITS_ARB, &OGL.maxTextureUnits );
+		OGL.maxTextureUnits = min( 8, OGL.maxTextureUnits ); // The plugin only supports 8, and 4 is really enough
 	}
 
 	if (OGL.EXT_fog_coord = isExtensionSupported( "GL_EXT_fog_coord" ))
@@ -150,67 +150,32 @@ void OGL_InitExtensions()
 		glSecondaryColorPointerEXT = (PFNGLSECONDARYCOLORPOINTEREXTPROC)wglGetProcAddress( "glSecondaryColorPointerEXT" );
 	}
 
-	OGL.EXT_texture_env_combine = isExtensionSupported( "GL_EXT_texture_env_combine" );
 	OGL.ARB_texture_env_combine = isExtensionSupported( "GL_ARB_texture_env_combine" );
 	OGL.ARB_texture_env_crossbar = isExtensionSupported( "GL_ARB_texture_env_crossbar" );
-}
-
-void OGL_UpdateScale()
-{
-	float scaleX = (float)(*REG.VI_X_SCALE & 0xFFFF) / 1024.0f;
-	float scaleY = (float)(*REG.VI_Y_SCALE & 0xFFFF) / 2048.0f;
-
-	RDP.width = ((*REG.VI_H_START & 0xFFFF) - (*REG.VI_H_START >> 16)) * scaleX;
-	RDP.height = ((*REG.VI_V_START & 0xFFFF) - (*REG.VI_V_START >> 16)) * scaleY * 1.0126582f;
-
-	if (RDP.width == 0.0f)
-		RDP.width = 320.0f;
-
-	if (RDP.height == 0.0f)
-		RDP.height = 240.0f;
-
-	OGL.scaleX = OGL.width / (float)RDP.width;
-	OGL.scaleY = OGL.height / (float)RDP.height;
-}
-
-void OGL_ResizeWindow( WORD width, WORD height)
-{
-	RECT	windowRect, statusRect;
-
-	OGL.width = OGL.windowedWidth = width;
-	OGL.height = OGL.windowedHeight = height;
-
-	GetClientRect( hWnd, &windowRect );
-	GetWindowRect( hStatusBar, &statusRect );
-
-	OGL.heightOffset = (statusRect.bottom - statusRect.top);
-	windowRect.right = windowRect.left + OGL.width - 1;
-	windowRect.bottom = windowRect.top + OGL.height - 1 + OGL.heightOffset;
-
-	AdjustWindowRect( &windowRect, GetWindowLong( hWnd, GWL_STYLE ), (BOOL)GetMenu( hWnd ) );
-
-	SetWindowPos( hWnd, NULL, 0, 0,	windowRect.right - windowRect.left + 1,
-					windowRect.bottom - windowRect.top + 1, SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOMOVE );
-
-	OGL_UpdateScale();
-
-	RSP.update |= UPDATE_VIEWPORT;
+	OGL.EXT_texture_env_combine = isExtensionSupported( "GL_EXT_texture_env_combine" );
+	OGL.ATI_texture_env_combine3 = isExtensionSupported( "GL_ATI_texture_env_combine3" );
+	OGL.ATIX_texture_env_route = isExtensionSupported( "GL_ATIX_texture_env_route" );
+	OGL.NV_texture_env_combine4 = isExtensionSupported( "GL_NV_texture_env_combine4" );;
 }
 
 void OGL_InitStates()
 {
-	OGL.originAdjust = (OGL.enable2xSaI ? 0.25 : 0.50);
-
 	glMatrixMode( GL_PROJECTION );
 	glLoadIdentity();
-
-	glEnable( GL_SCISSOR_TEST );
+	glMatrixMode( GL_MODELVIEW );
+	glLoadIdentity();
 
 	glVertexPointer( 4, GL_FLOAT, sizeof( GLVertex ), &OGL.vertices[0].x );
 	glEnableClientState( GL_VERTEX_ARRAY );
 
-	glColorPointer( 4, GL_FLOAT, sizeof( GLVertex ), &OGL.vertices[0].r );
+	glColorPointer( 4, GL_FLOAT, sizeof( GLVertex ), &OGL.vertices[0].color.r );
 	glEnableClientState( GL_COLOR_ARRAY );
+
+	if (OGL.EXT_secondary_color)
+	{
+		glSecondaryColorPointerEXT( 3, GL_FLOAT, sizeof( GLVertex ), &OGL.vertices[0].secondaryColor.r );
+		glEnableClientState( GL_SECONDARY_COLOR_ARRAY_EXT );
+	}
 
 	if (OGL.ARB_multitexture)
 	{
@@ -230,17 +195,17 @@ void OGL_InitStates()
 
 	if (OGL.EXT_fog_coord)
 	{
-		glFogCoordPointerEXT( GL_FLOAT, sizeof( GLVertex ), &OGL.vertices[0].fog );
-		glHint( GL_FOG_HINT, GL_NICEST );
-		glEnableClientState( GL_FOG_COORDINATE_ARRAY_EXT );
 		glFogi( GL_FOG_COORDINATE_SOURCE_EXT, GL_FOG_COORDINATE_EXT );
 
-		glFogf( GL_FOG_MODE, GL_LINEAR );
+		glFogi( GL_FOG_MODE, GL_LINEAR );
 		glFogf( GL_FOG_START, 0.0f );
 		glFogf( GL_FOG_END, 255.0f );
+
+		glFogCoordPointerEXT( GL_FLOAT, sizeof( GLVertex ), &OGL.vertices[0].fog );
+		glEnableClientState( GL_FOG_COORDINATE_ARRAY_EXT );
 	}
 
-	glPolygonOffset( -1.0f, -1.0f );
+	glPolygonOffset( -3.0f, -3.0f );
 
 	glClearColor( 0.0f, 0.0f, 0.0f, 0.0f );
 	glClear( GL_COLOR_BUFFER_BIT );
@@ -260,13 +225,53 @@ void OGL_InitStates()
 											((i > (rand() >> 10)) << 1) |
 											((i > (rand() >> 10)) << 0);
 	}
+
+	SwapBuffers( wglGetCurrentDC() );
 }
 
-BOOL OGL_Start()
+void OGL_UpdateScale()
 {
-	OGL_ResizeWindow( OGL.windowedWidth, OGL.windowedHeight );
+	OGL.scaleX = OGL.width / (float)VI.width;
+	OGL.scaleY = OGL.height / (float)VI.height;
+}
 
+void OGL_ResizeWindow()
+{
+	RECT	windowRect, statusRect;
+
+	if (OGL.fullscreen)
+	{
+		OGL.width = OGL.fullscreenWidth;
+		OGL.height = OGL.fullscreenHeight;
+		OGL.heightOffset = 0;
+
+		SetWindowPos( OGL.hWnd, NULL, 0, 0,	OGL.width, OGL.height, SWP_NOACTIVATE | SWP_NOZORDER | SWP_SHOWWINDOW );
+	}
+	else
+	{
+		OGL.width = OGL.windowedWidth;
+		OGL.height = OGL.windowedHeight;
+
+		GetClientRect( OGL.hWnd, &windowRect );
+		GetWindowRect( hStatusBar, &statusRect );
+
+		OGL.heightOffset = (statusRect.bottom - statusRect.top);
+		windowRect.right = windowRect.left + OGL.windowedWidth - 1;
+		windowRect.bottom = windowRect.top + OGL.windowedHeight - 1 + OGL.heightOffset;
+
+		AdjustWindowRect( &windowRect, GetWindowLong( OGL.hWnd, GWL_STYLE ), GetMenu( OGL.hWnd ) != NULL );
+
+		SetWindowPos( OGL.hWnd, NULL, 0, 0,	windowRect.right - windowRect.left + 1,
+						windowRect.bottom - windowRect.top + 1, SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOMOVE );
+	}
+}
+
+bool OGL_Start()
+{
 	int		pixelFormat;
+
+	OGL.hWnd = hWnd;
+
 	PIXELFORMATDESCRIPTOR pfd = { 
 		sizeof(PIXELFORMATDESCRIPTOR),    // size of this pfd 
 		1,                                // version number 
@@ -274,13 +279,13 @@ BOOL OGL_Start()
 		PFD_SUPPORT_OPENGL |              // support OpenGL 
 		PFD_DOUBLEBUFFER,                 // double buffered 
 		PFD_TYPE_RGBA,                    // RGBA type 
-		32,                               // 24-bit color depth 
+		32,								  // color depth 
 		0, 0, 0, 0, 0, 0,                 // color bits ignored 
 		0,                                // no alpha buffer 
 		0,                                // shift bit ignored 
 		0,                                // no accumulation buffer 
 		0, 0, 0, 0,                       // accum bits ignored 
-		32,                               // 32-bit z-buffer     
+		32,								  // z-buffer     
 		0,                                // no stencil buffer 
 		0,                                // no auxiliary buffer 
 		PFD_MAIN_PLANE,                   // main layer 
@@ -288,615 +293,569 @@ BOOL OGL_Start()
 		0, 0, 0                           // layer masks ignored 
 	};
 
-	if ((OGL.hDC = GetDC( hWnd )) == NULL)
+	if ((OGL.hDC = GetDC( OGL.hWnd )) == NULL)
 	{
-		MessageBox( hWnd, "Error while getting a device context!", pluginName, MB_ICONERROR | MB_OK );
+		MessageBox( OGL.hWnd, "Error while getting a device context!", pluginName, MB_ICONERROR | MB_OK );
 		return FALSE;
 	}
 
 	if ((pixelFormat = ChoosePixelFormat( OGL.hDC, &pfd )) == 0)
 	{
-		MessageBox( hWnd, "Unable to find a suitable pixel format!", pluginName, MB_ICONERROR | MB_OK );
+		MessageBox( OGL.hWnd, "Unable to find a suitable pixel format!", pluginName, MB_ICONERROR | MB_OK );
 		OGL_Stop();
 		return FALSE;
 	}
 
 	if ((SetPixelFormat( OGL.hDC, pixelFormat, &pfd )) == FALSE)
 	{
-		MessageBox( hWnd, "Error while setting pixel format!", pluginName, MB_ICONERROR | MB_OK );
+		MessageBox( OGL.hWnd, "Error while setting pixel format!", pluginName, MB_ICONERROR | MB_OK );
 		OGL_Stop();
 		return FALSE;
 	}
 
 	if ((OGL.hRC = wglCreateContext( OGL.hDC )) == NULL)
 	{
-		MessageBox( hWnd, "Error while creating OpenGL context!", pluginName, MB_ICONERROR | MB_OK );
+		MessageBox( OGL.hWnd, "Error while creating OpenGL context!", pluginName, MB_ICONERROR | MB_OK );
 		OGL_Stop();
 		return FALSE;
 	}
 
 	if ((wglMakeCurrent( OGL.hDC, OGL.hRC )) == FALSE)
 	{
-		MessageBox( hWnd, "Error while making OpenGL context current!", pluginName, MB_ICONERROR | MB_OK );
+		MessageBox( OGL.hWnd, "Error while making OpenGL context current!", pluginName, MB_ICONERROR | MB_OK );
 		OGL_Stop();
 		return FALSE;
 	}
 
 	OGL_InitExtensions();
-
 	OGL_InitStates();
 
 	TextureCache_Init();
-	return TRUE;
-}
-
-void OGL_StopFullscreen()
-{
-	if (OGL.hFullscreenRC)
-	{
-		if (!wglMakeCurrent( NULL, NULL ))
-			MessageBox( hFullscreen, "Error while uncurrentizing the OpenGL context!", pluginName, MB_ICONERROR | MB_OK );
-
-		if (!wglDeleteContext( OGL.hFullscreenRC ))
-			MessageBox( hFullscreen, "Error while deleting the OpenGL context!", pluginName, MB_ICONERROR | MB_OK );
-
-		OGL.hFullscreenRC = NULL;
-	}
-
-	if (OGL.hFullscreenDC)
-	{
-		if (!ReleaseDC( hFullscreen, OGL.hFullscreenDC ))
-			MessageBox( hFullscreen, "Error while releasing the device context!", pluginName, MB_ICONERROR | MB_OK );
-
-		OGL.hFullscreenDC = NULL;
-	}
-
-	OGL.fullscreen = FALSE;
-}
-
-BOOL OGL_StartFullscreen()
-{
-	int		pixelFormat;
-	PIXELFORMATDESCRIPTOR pfd = { 
-		sizeof(PIXELFORMATDESCRIPTOR),    // size of this pfd 
-		1,                                // version number 
-		PFD_DRAW_TO_WINDOW |              // support window 
-		PFD_SUPPORT_OPENGL |              // support OpenGL 
-		PFD_DOUBLEBUFFER,                 // double buffered 
-		PFD_TYPE_RGBA,                    // RGBA type 
-		OGL.fullscreenBits,               // 24-bit color depth 
-		0, 0, 0, 0, 0, 0,                 // color bits ignored 
-		0,                                // no alpha buffer 
-		0,                                // shift bit ignored 
-		0,                                // no accumulation buffer 
-		0, 0, 0, 0,                       // accum bits ignored 
-		OGL.fullscreenBits,               // 32-bit z-buffer     
-		0,                                // no stencil buffer 
-		0,                                // no auxiliary buffer 
-		PFD_MAIN_PLANE,                   // main layer 
-		0,                                // reserved 
-		0, 0, 0                           // layer masks ignored 
-	};
-
-	if ((OGL.hFullscreenDC = GetDC( hFullscreen )) == NULL)
-	{
-		MessageBox( hFullscreen, "Error while getting a device context!", pluginName, MB_ICONERROR | MB_OK );
-		return FALSE;
-	}
-
-	if ((pixelFormat = ChoosePixelFormat( OGL.hFullscreenDC, &pfd )) == 0)
-	{
-		MessageBox( hFullscreen, "Unable to find a suitable pixel format!", pluginName, MB_ICONERROR | MB_OK );
-		return FALSE;
-	}
-
-	if ((SetPixelFormat( OGL.hFullscreenDC, pixelFormat, &pfd )) == FALSE)
-	{
-		MessageBox( hFullscreen, "Error while setting pixel format!", pluginName, MB_ICONERROR | MB_OK );
-		return FALSE;
-	}
-
-	if ((OGL.hFullscreenRC = wglCreateContext( OGL.hFullscreenDC )) == NULL)
-	{
-		MessageBox( hFullscreen, "Error while creating OpenGL context!", pluginName, MB_ICONERROR | MB_OK );
-		OGL_StopFullscreen();
-		return FALSE;
-	}
-
-	wglShareLists( OGL.hRC, OGL.hFullscreenRC );
-
-	if ((wglMakeCurrent( OGL.hFullscreenDC, OGL.hFullscreenRC )) == FALSE)
-	{
-		MessageBox( hFullscreen, "Error while making OpenGL context current!", pluginName, MB_ICONERROR | MB_OK );
-		OGL_StopFullscreen();
-		return FALSE;
-	}
-
-	OGL_InitStates();
+	FrameBuffer_Init();
 	Combiner_Init();
 
+	gSP.changed = gDP.changed = 0xFFFFFFFF;
+	OGL_UpdateScale();
+
 	return TRUE;
-}
-
-void OGL_ToggleFullscreen()
-{
-	if (!OGL.fullscreen)
-	{
-		if (OGL.fullscreen = OGL_StartFullscreen())
-		{
-			OGL.width = OGL.fullscreenWidth;
-			OGL.height = OGL.fullscreenHeight;
-			OGL.heightOffset = 0;
-
-			OGL_UpdateScale();
-
-			RSP.update = UPDATE_ALL;
-		}
-	}
-	else
-	{
-		OGL_StopFullscreen();
-
-		wglMakeCurrent( OGL.hDC, OGL.hRC );
-
-		OGL.fullscreen = FALSE;
-
-		OGL.width = OGL.windowedWidth;
-		OGL.height = OGL.windowedHeight;
-
-		RSP.update = UPDATE_ALL;
-	}
 }
 
 void OGL_Stop()
 {
+	Combiner_Destroy();
+	FrameBuffer_Destroy();
 	TextureCache_Destroy();
 
-	if (OGL.hFullscreenRC)
-		OGL_StopFullscreen();
+	wglMakeCurrent( NULL, NULL );
 
 	if (OGL.hRC)
 	{
-		if (!wglMakeCurrent( NULL, NULL ))
-			MessageBox( hWnd, "Error while uncurrentizing the OpenGL context!", pluginName, MB_ICONERROR | MB_OK );
-
-		if (!wglDeleteContext( OGL.hRC ))
-			MessageBox( hWnd, "Error while deleting the OpenGL context!", pluginName, MB_ICONERROR | MB_OK );
-
+		wglDeleteContext( OGL.hRC );
 		OGL.hRC = NULL;
 	}
 
 	if (OGL.hDC)
 	{
-		if (!ReleaseDC( hWnd, OGL.hDC ))
-			MessageBox( hWnd, "Error while releasing the device context!", pluginName, MB_ICONERROR | MB_OK );
-
+		ReleaseDC( OGL.hWnd, OGL.hDC );
 		OGL.hDC = NULL;
 	}
 }
 
+void OGL_UpdateCullFace()
+{
+	if (gSP.geometryMode & G_CULL_BOTH)
+	{
+		glEnable( GL_CULL_FACE );
+
+		if (gSP.geometryMode & G_CULL_BACK)
+			glCullFace( GL_BACK );
+		else
+			glCullFace( GL_FRONT );
+	}
+	else
+		glDisable( GL_CULL_FACE );
+}
+
+void OGL_UpdateViewport()
+{
+	glViewport( gSP.viewport.x * OGL.scaleX, (VI.height - (gSP.viewport.y + gSP.viewport.height)) * OGL.scaleY + (OGL.frameBufferTextures ? 0 : OGL.heightOffset), 
+		gSP.viewport.width * OGL.scaleX, gSP.viewport.height * OGL.scaleY ); 
+	glDepthRange( 0.0f, 1.0f );//gSP.viewport.nearz, gSP.viewport.farz );
+}
+
+void OGL_UpdateDepthUpdate()
+{
+	if (gDP.otherMode.depthUpdate)
+		glDepthMask( TRUE );
+	else
+		glDepthMask( FALSE );
+}
+
 void OGL_UpdateStates()
 {
-	static DWORD oldOtherMode_H, oldGeometryMode;
-	RDP.changed.otherMode_H = oldOtherMode_H ^ RDP.otherMode_H;
-	RSP.changed.geometryMode = oldGeometryMode ^ RSP.geometryMode;
-
-	// Cull mode
-	if ((RSP.changed.geometryMode & RSP_GEOMETRYMODE_CULL_BOTH) ||
-		(RSP.update & UPDATE_CULLMODE))
+	if (gSP.changed & CHANGED_GEOMETRYMODE)
 	{
- 		if (RSP.geometryMode & RSP_GEOMETRYMODE_CULL_BOTH)
-		{
-			glEnable( GL_CULL_FACE );
+		OGL_UpdateCullFace();
 
-			if (RSP.geometryMode & RSP_GEOMETRYMODE_CULL_BACK)
-				glCullFace( GL_BACK );
-			else
-				glCullFace( GL_FRONT );
-		}
+		if ((gSP.geometryMode & G_FOG) && OGL.EXT_fog_coord && OGL.fog)
+			glEnable( GL_FOG );
 		else
-			glDisable( GL_CULL_FACE );
+			glDisable( GL_FOG );
 
-		RSP.update &= ~UPDATE_CULLMODE;
+		gSP.changed &= ~CHANGED_GEOMETRYMODE;
 	}
 
-	// Z buffer
-   	if ((RSP.changed.geometryMode & RSP_GEOMETRYMODE_ZBUFFER) ||
-		(RSP.update & UPDATE_ZMODE))
-	{
-		if (RSP.geometryMode & RSP_GEOMETRYMODE_ZBUFFER)
-			glEnable( GL_DEPTH_TEST );
-		else
-			glDisable( GL_DEPTH_TEST );
-		RSP.update &= ~UPDATE_ZMODE;
-	}
+	if (gSP.geometryMode & G_ZBUFFER)
+		glEnable( GL_DEPTH_TEST );
+	else
+		glDisable( GL_DEPTH_TEST );
 
-	// Z compare
-	if ((RDP.changed.otherMode_L & RENDERMODE_Z_COMPARE) ||
-		(RSP.update & UPDATE_ZCOMPARE))
+	if (gDP.changed & CHANGED_RENDERMODE)
 	{
-		if (RDP.otherMode_L & RENDERMODE_Z_COMPARE)
-			glDepthFunc( GL_LESS );
+		if (gDP.otherMode.depthCompare)
+			glDepthFunc( GL_LEQUAL );
 		else
 			glDepthFunc( GL_ALWAYS );
-		RSP.update &= ~UPDATE_ZCOMPARE;
-	}
 
-	// Z update
-	if ((RDP.changed.otherMode_L & RENDERMODE_Z_UPDATE) || // Update Z buffer
-		(RDP.changed.otherMode_L & RENDERMODE_ZMODE_XLU) || // Z transparent
-		(RSP.update & UPDATE_ZUPDATE))
-	{
-		if (RDP.otherMode_L & RENDERMODE_Z_UPDATE)
-			glDepthMask( GL_TRUE );
-		else
-			glDepthMask( GL_FALSE );
+		OGL_UpdateDepthUpdate();
 
-		RSP.update &= ~UPDATE_ZUPDATE;
-	}
-
-	// Z bias
-	if ((RDP.changed.otherMode_L & RENDERMODE_ZMODE_INTER) ||
-		(RSP.update & UPDATE_ZINTER))
-	{
-		if (RDP.otherMode_L & RENDERMODE_ZMODE_INTER)
+		if (gDP.otherMode.depthMode == ZMODE_DEC)
 			glEnable( GL_POLYGON_OFFSET_FILL );
 		else
-			glDisable( GL_POLYGON_OFFSET_FILL );
-		RSP.update &= ~UPDATE_ZINTER;
-	}
-
-	// Enable alpha test for threshold mode
-	if (((RDP.otherMode_L & ALPHACOMPARE) == ALPHACOMPARE_THRESHOLD) && !(RDP.otherMode_L & RENDERMODE_ALPHA_CVG_SEL))
-	{
-		glEnable( GL_ALPHA_TEST );
-
-		glAlphaFunc( (RDP.blendColor.a > 0.0f) ? GL_GEQUAL : GL_GREATER, RDP.blendColor.a );
-	}
-	// Used in TEX_EDGE and similar render modes
- 	else if (RDP.otherMode_L & RENDERMODE_CVG_X_ALPHA)
-	{
-		glEnable( GL_ALPHA_TEST );
-
-		// Arbitrary number -- gives nice results though
-		glAlphaFunc( GL_GEQUAL, 0.5f );
-	}
-	else
-		glDisable( GL_ALPHA_TEST );
-	
-	if (((RDP.otherMode_L & ALPHACOMPARE) == ALPHACOMPARE_DITHER) && !(RDP.otherMode_L & RENDERMODE_ALPHA_CVG_SEL))
-		glEnable( GL_POLYGON_STIPPLE );
-	else
-		glDisable( GL_POLYGON_STIPPLE );
-
-	// Once the blender code matures this should be handled there
-	if ((RSP.changed.geometryMode & RSP_GEOMETRYMODE_FOG) || (RSP.update & UPDATE_FOG))
-	{
-		if ((RSP.geometryMode & RSP_GEOMETRYMODE_FOG) && (OGL.fog))
-			glEnable( GL_FOG );
- 		else
-			glDisable( GL_FOG );
- 	}
-
-	if ((RDP.changed.otherMode_H & CYCLETYPE) || (RSP.update & UPDATE_COMBINE))
-		Combiner_UpdateCombineMode();
-
-	if (RSP.update & UPDATE_COMBINE_COLORS)
-		Combiner_UpdateCombineColors();
-
-	if (RDP.useT0)
-	{
-		glActiveTextureARB( GL_TEXTURE0_ARB );
-		glEnable( GL_TEXTURE_2D );
-	}
-	else
-	{
-		glActiveTextureARB( GL_TEXTURE0_ARB );
-		glDisable( GL_TEXTURE_2D );
-	}
-
-	if ((RDP.useT1) || (RDP.useNoise)) // hacked in noise support - will clean up later
-	{
-		glActiveTextureARB( GL_TEXTURE1_ARB );
-		glEnable( GL_TEXTURE_2D );
-	}
-	else
-	{
-		glActiveTextureARB( GL_TEXTURE1_ARB );
-		glDisable( GL_TEXTURE_2D );
-	}
-
-	if (RSP.update & UPDATE_TEXTURES)
- 	{ 
-		if (RDP.useT0)
- 			TextureCache_ActivateTexture( 0 );
-
-		if (RDP.useT1)
- 			TextureCache_ActivateTexture( 1 );
-
-		RSP.update &= ~UPDATE_TEXTURES;
-	}
-
-	if ((RDP.useNoise) && (!RDP.useT1))
-		TextureCache_ActivateNoise( 1 );
-
-	if (RSP.update & UPDATE_VIEWPORT)
-	{
-		glViewport( RSP.viewport.x * OGL.scaleX, (RDP.height - RSP.viewport.y) * OGL.scaleY + OGL.heightOffset, RSP.viewport.width * OGL.scaleX, RSP.viewport.height * OGL.scaleY ); 
-		glDepthRange( RSP.viewport.nearZ, RSP.viewport.farZ );
-		RSP.update &= ~UPDATE_VIEWPORT;
-	}
-
-	// commented out because blender code seemes to work just as well
-// 	if ((RDP.otherMode_L & RENDERMODE_ALPHA_CVG_SEL) || // No coverage emulation
-//		((RDP.otherMode_H & CYCLETYPE) == CYCLETYPE_COPY)) // No blending in copy mode
-//		glDisable( GL_BLEND );
-
-	// Very basic, and experimental (and probably incorrect) blender support
-	// Results are good so far though...
-	if ((RDP.otherMode_L & RENDERMODE_FORCE_BL) &&
-		((RDP.otherMode_H & CYCLETYPE) != CYCLETYPE_COPY) &&
-		((RDP.otherMode_H & CYCLETYPE) != CYCLETYPE_FILL))
-	{
- 		glEnable( GL_BLEND );
-
-		switch (RDP.otherMode_L >> 16)
 		{
-			case 0x0448: // Add
-			case 0x055A:
-				glBlendFunc( GL_ONE, GL_ONE );
-				break;
-			case 0x0C08: // 1080 Sky
-			case 0x0F0A: // Used LOTS of places
-				glBlendFunc( GL_ONE, GL_ZERO );
-				break;
-			case 0xC810: // Blends fog
-			case 0xC811: // Blends fog
-			case 0x0C18: // Standard interpolated blend
-			case 0x0C19: // Used for antialiasing
-			case 0x0050: // Standard interpolated blend
-			case 0x0055: // Used for antialiasing
-				glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
-				break;
-			case 0x0FA5: // Seems to be doing just blend color - maybe combiner can be used for this?
-			case 0x5055: // Used in Paper Mario intro, I'm not sure if this is right...
-				glBlendFunc( GL_ZERO, GL_ONE );
-				break;
-			default:
-				glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
-				break;
+//			glPolygonOffset( -3.0f, -3.0f );
+			glDisable( GL_POLYGON_OFFSET_FILL );
 		}
 	}
-	else
-		glDisable( GL_BLEND );
 
-  	RSP.update = 0;
-	oldOtherMode_H = RDP.otherMode_H;
-	oldGeometryMode = RSP.geometryMode;
-	RDP.changed.otherMode_L = 0x00000000;
-	RDP.changed.otherMode_H = 0x00000000;
-	RSP.changed.geometryMode = 0x00000000;
+	if ((gDP.changed & CHANGED_ALPHACOMPARE) || (gDP.changed & CHANGED_RENDERMODE))
+	{
+		// Enable alpha test for threshold mode
+		if ((gDP.otherMode.alphaCompare == G_AC_THRESHOLD) && !(gDP.otherMode.alphaCvgSel))
+		{
+			glEnable( GL_ALPHA_TEST );
+
+			glAlphaFunc( (gDP.blendColor.a > 0.0f) ? GL_GEQUAL : GL_GREATER, gDP.blendColor.a );
+		}
+		// Used in TEX_EDGE and similar render modes
+		else if (gDP.otherMode.cvgXAlpha)
+		{
+			glEnable( GL_ALPHA_TEST );
+
+			// Arbitrary number -- gives nice results though
+			glAlphaFunc( GL_GEQUAL, 0.5f );
+		}
+		else
+			glDisable( GL_ALPHA_TEST );
+
+		// Slow on anything but GeForce, so limit it to NV_register_combiners
+		if (OGL.NV_register_combiners && (gDP.otherMode.alphaCompare == G_AC_DITHER) && !(gDP.otherMode.alphaCvgSel))
+			glEnable( GL_POLYGON_STIPPLE );
+		else
+			glDisable( GL_POLYGON_STIPPLE );
+	}
+
+	if (gDP.changed & CHANGED_SCISSOR)
+	{
+		glScissor( gDP.scissor.ulx * OGL.scaleX, (VI.height - gDP.scissor.lry) * OGL.scaleY + (OGL.frameBufferTextures ? 0 : OGL.heightOffset),
+			(gDP.scissor.lrx - gDP.scissor.ulx) * OGL.scaleX, (gDP.scissor.lry - gDP.scissor.uly) * OGL.scaleY );
+	}
+
+	if (gSP.changed & CHANGED_VIEWPORT)
+	{
+		OGL_UpdateViewport();
+	}
+
+	if ((gDP.changed & CHANGED_COMBINE) || (gDP.changed & CHANGED_CYCLETYPE))
+	{
+		if (gDP.otherMode.cycleType == G_CYC_COPY)
+			Combiner_SetCombine( EncodeCombineMode( 0, 0, 0, TEXEL0, 0, 0, 0, TEXEL0, 0, 0, 0, TEXEL0, 0, 0, 0, TEXEL0 ) );
+		else if (gDP.otherMode.cycleType == G_CYC_FILL)
+			Combiner_SetCombine( EncodeCombineMode( 0, 0, 0, SHADE, 0, 0, 0, 1, 0, 0, 0, SHADE, 0, 0, 0, 1 ) );
+		else
+			Combiner_SetCombine( gDP.combine.mux );
+	}
+
+	if (gDP.changed & CHANGED_COMBINE_COLORS)
+	{
+		Combiner_UpdateCombineColors();
+	}
+
+	if ((gSP.changed & CHANGED_TEXTURE) || (gDP.changed & CHANGED_TILE) || (gDP.changed & CHANGED_TMEM))
+	{
+		Combiner_BeginTextureUpdate();
+
+		if (combiner.usesT0)
+		{
+			TextureCache_Update( 0 );
+
+			gSP.changed &= ~CHANGED_TEXTURE;
+			gDP.changed &= ~CHANGED_TILE;
+			gDP.changed &= ~CHANGED_TMEM;
+		}
+		else
+		{
+			TextureCache_ActivateDummy( 0 );
+		}
+
+		if (combiner.usesT1)
+		{
+			TextureCache_Update( 1 );
+
+			gSP.changed &= ~CHANGED_TEXTURE;
+			gDP.changed &= ~CHANGED_TILE;
+			gDP.changed &= ~CHANGED_TMEM;
+		}
+		else
+		{
+			TextureCache_ActivateDummy( 1 );
+		}
+
+		Combiner_EndTextureUpdate();
+	}
+
+	if ((gDP.changed & CHANGED_FOGCOLOR) && OGL.fog)
+		glFogfv( GL_FOG_COLOR, &gDP.fogColor.r );
+
+	if ((gDP.changed & CHANGED_RENDERMODE) || (gDP.changed & CHANGED_CYCLETYPE))
+	{
+		if ((gDP.otherMode.forceBlender) &&
+			(gDP.otherMode.cycleType != G_CYC_COPY) &&
+			(gDP.otherMode.cycleType != G_CYC_FILL) &&
+			!(gDP.otherMode.alphaCvgSel))
+		{
+ 			glEnable( GL_BLEND );
+
+			switch (gDP.otherMode.l >> 16)
+			{
+				case 0x0448: // Add
+				case 0x055A:
+					glBlendFunc( GL_ONE, GL_ONE );
+					break;
+				case 0x0C08: // 1080 Sky
+				case 0x0F0A: // Used LOTS of places
+					glBlendFunc( GL_ONE, GL_ZERO );
+					break;
+				case 0xC810: // Blends fog
+				case 0xC811: // Blends fog
+				case 0x0C18: // Standard interpolated blend
+				case 0x0C19: // Used for antialiasing
+				case 0x0050: // Standard interpolated blend
+				case 0x0055: // Used for antialiasing
+					glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+					break;
+				case 0x0FA5: // Seems to be doing just blend color - maybe combiner can be used for this?
+				case 0x5055: // Used in Paper Mario intro, I'm not sure if this is right...
+					glBlendFunc( GL_ZERO, GL_ONE );
+					break;
+				default:
+					glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+					break;
+			}
+		}
+		else
+			glDisable( GL_BLEND );
+
+		if (gDP.otherMode.cycleType == G_CYC_FILL)
+		{
+			glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+			glEnable( GL_BLEND );
+		}
+	}
+
+	gDP.changed &= CHANGED_TILE | CHANGED_TMEM;
+	gSP.changed &= CHANGED_TEXTURE | CHANGED_MATRIX;
 }
 
-void OGL_AdjustTexCoords( BYTE i )
+void OGL_AddTriangle( SPVertex *vertices, int v0, int v1, int v2 )
 {
-	OGL.vertices[i].s0 *= cache.current[0]->scaleS;
-	OGL.vertices[i].t0 *= cache.current[0]->scaleT;
-}
+	int v[] = { v0, v1, v2 };
 
-void OGL_AddTriangle( BYTE tri[3] )
-{
-	OGL_UpdateStates();
+	if (gSP.changed || gDP.changed)
+		OGL_UpdateStates();
+
+//	Playing around with lod fraction junk...
+//	float ds = max( max( fabs( vertices[v0].s - vertices[v1].s ), fabs( vertices[v0].s - vertices[v2].s ) ), fabs( vertices[v1].s - vertices[v2].s ) ) * cache.current[0]->shiftScaleS * gSP.texture.scales;
+//	float dx = max( max( fabs( vertices[v0].x / vertices[v0].w - vertices[v1].x / vertices[v1].w ), fabs( vertices[v0].x / vertices[v0].w - vertices[v2].x / vertices[v2].w ) ), fabs( vertices[v1].x / vertices[v1].w - vertices[v2].x / vertices[v2].w ) ) * gSP.viewport.vscale[0];
+//	float lod = ds / dx;
+//	float lod_fraction = min( 1.0f, max( 0.0f, lod - 1.0f ) / max( 1.0f, gSP.texture.level ) );
+
 
 	for (int i = 0; i < 3; i++)
 	{
-		OGL.triangles[OGL.numTriangles][i] = tri[i];
+		OGL.vertices[OGL.numVertices].x = vertices[v[i]].x;
+		OGL.vertices[OGL.numVertices].y = vertices[v[i]].y;
+		OGL.vertices[OGL.numVertices].z = gDP.otherMode.depthSource == G_ZS_PRIM ? gDP.primDepth.z * vertices[v[i]].w : vertices[v[i]].z;
+		OGL.vertices[OGL.numVertices].w = vertices[v[i]].w;
 
-		if (TRUE) //RSP.vertices[tri[i]].changed) -- need to fix some state handling first
+		OGL.vertices[OGL.numVertices].color.r = vertices[v[i]].r;
+		OGL.vertices[OGL.numVertices].color.g = vertices[v[i]].g;
+		OGL.vertices[OGL.numVertices].color.b = vertices[v[i]].b;
+		OGL.vertices[OGL.numVertices].color.a = vertices[v[i]].a;
+		SetConstant( OGL.vertices[OGL.numVertices].color, combiner.vertex.color, combiner.vertex.alpha );
+		//SetConstant( OGL.vertices[OGL.numVertices].secondaryColor, combiner.vertex.secondaryColor, ONE );
+
+		if (OGL.EXT_secondary_color)
 		{
-			Vertex *src = &RSP.vertices[tri[i]];
-			GLVertex *dest = &OGL.vertices[tri[i]];
-
-			dest->x = src->x;
-			dest->y = src->y;
-			dest->z = (RDP.otherMode_L & ZSOURCE_PRIMITIVE) ? (RDP.primDepth * src->w) : ((RSP.geometryMode & RSP_GEOMETRYMODE_ZBUFFER) ? src->z : 0.0f);
-			dest->w = src->w;
-
-			if (RDP.useT0)
-			{
-				dest->s0 = src->s * cache.current[0]->scaleS + (OGL.originAdjust - RSP.textureTile[0]->fulS) * cache.current[0]->offsetScaleS;
-				dest->t0 = src->t * cache.current[0]->scaleT + (OGL.originAdjust - RSP.textureTile[0]->fulT) * cache.current[0]->offsetScaleT;
-			}
-
-			if (RDP.useT1)
-			{
-				dest->s1 = src->s * cache.current[1]->scaleS + (OGL.originAdjust - RSP.textureTile[1]->fulS) * cache.current[1]->offsetScaleS;
-				dest->t1 = src->t * cache.current[1]->scaleT + (OGL.originAdjust - RSP.textureTile[1]->fulT) * cache.current[1]->offsetScaleT;
-			}
-
-			dest->r = src->r;
-			dest->g = src->g;
-			dest->b = src->b;
-			dest->a = src->a;
-
-			SetConstant( OGL.vertices[tri[i]], combiner.vertex.color, combiner.vertex.alpha );
-
-			if ((RSP.geometryMode & RSP_GEOMETRYMODE_FOG) && (OGL.fog))
-			{
-				if (dest->z < 0.0f)
-					dest->fog = 0.0f;
-				else
-					dest->fog = max( 0.0f, dest->z / dest->w * RSP.fogMultiplier + RSP.fogOffset );
-			}
-
-			src->changed = FALSE;
+			OGL.vertices[OGL.numVertices].secondaryColor.r = 0.0f;//lod_fraction; //vertices[v[i]].r;
+			OGL.vertices[OGL.numVertices].secondaryColor.g = 0.0f;//lod_fraction; //vertices[v[i]].g;
+			OGL.vertices[OGL.numVertices].secondaryColor.b = 0.0f;//lod_fraction; //vertices[v[i]].b;
+			OGL.vertices[OGL.numVertices].secondaryColor.a = 1.0f;
+			SetConstant( OGL.vertices[OGL.numVertices].secondaryColor, combiner.vertex.secondaryColor, ONE );
 		}
+
+		if ((gSP.geometryMode & G_FOG) && OGL.EXT_fog_coord && OGL.fog)
+		{
+			if (vertices[v[i]].z < -vertices[v[i]].w)
+				OGL.vertices[OGL.numVertices].fog = max( 0.0f, -(float)gSP.fog.multiplier + (float)gSP.fog.offset );
+			else
+				OGL.vertices[OGL.numVertices].fog = max( 0.0f, vertices[v[i]].z / vertices[v[i]].w * (float)gSP.fog.multiplier + (float)gSP.fog.offset );
+		}
+
+		if (combiner.usesT0)
+		{
+			if (cache.current[0]->frameBufferTexture)
+			{
+/*				OGL.vertices[OGL.numVertices].s0 = (cache.current[0]->offsetS + (vertices[v[i]].s * cache.current[0]->shiftScaleS * gSP.texture.scales - gSP.textureTile[0]->fuls)) * cache.current[0]->scaleS;
+				OGL.vertices[OGL.numVertices].t0 = (cache.current[0]->offsetT - (vertices[v[i]].t * cache.current[0]->shiftScaleT * gSP.texture.scalet - gSP.textureTile[0]->fult)) * cache.current[0]->scaleT;*/
+
+				if (gSP.textureTile[0]->masks)
+					OGL.vertices[OGL.numVertices].s0 = (cache.current[0]->offsetS + (vertices[v[i]].s * cache.current[0]->shiftScaleS * gSP.texture.scales - fmod( gSP.textureTile[0]->fuls, 1 << gSP.textureTile[0]->masks ))) * cache.current[0]->scaleS;
+				else
+					OGL.vertices[OGL.numVertices].s0 = (cache.current[0]->offsetS + (vertices[v[i]].s * cache.current[0]->shiftScaleS * gSP.texture.scales - gSP.textureTile[0]->fuls)) * cache.current[0]->scaleS;
+
+				if (gSP.textureTile[0]->maskt)
+					OGL.vertices[OGL.numVertices].t0 = (cache.current[0]->offsetT - (vertices[v[i]].t * cache.current[0]->shiftScaleT * gSP.texture.scalet - fmod( gSP.textureTile[0]->fult, 1 << gSP.textureTile[0]->maskt ))) * cache.current[0]->scaleT;
+				else
+					OGL.vertices[OGL.numVertices].t0 = (cache.current[0]->offsetT - (vertices[v[i]].t * cache.current[0]->shiftScaleT * gSP.texture.scalet - gSP.textureTile[0]->fult)) * cache.current[0]->scaleT;
+			}
+			else
+			{
+				OGL.vertices[OGL.numVertices].s0 = (vertices[v[i]].s * cache.current[0]->shiftScaleS * gSP.texture.scales - gSP.textureTile[0]->fuls + cache.current[0]->offsetS) * cache.current[0]->scaleS; 
+				OGL.vertices[OGL.numVertices].t0 = (vertices[v[i]].t * cache.current[0]->shiftScaleT * gSP.texture.scalet - gSP.textureTile[0]->fult + cache.current[0]->offsetT) * cache.current[0]->scaleT;
+			}
+		}
+
+		if (combiner.usesT1)
+		{
+			if (cache.current[0]->frameBufferTexture)
+			{
+				OGL.vertices[OGL.numVertices].s1 = (cache.current[1]->offsetS + (vertices[v[i]].s * cache.current[1]->shiftScaleS * gSP.texture.scales - gSP.textureTile[1]->fuls)) * cache.current[1]->scaleS;
+				OGL.vertices[OGL.numVertices].t1 = (cache.current[1]->offsetT - (vertices[v[i]].t * cache.current[1]->shiftScaleT * gSP.texture.scalet - gSP.textureTile[1]->fult)) * cache.current[1]->scaleT;
+			}
+			else
+			{
+				OGL.vertices[OGL.numVertices].s1 = (vertices[v[i]].s * cache.current[1]->shiftScaleS * gSP.texture.scales - gSP.textureTile[1]->fuls + cache.current[1]->offsetS) * cache.current[1]->scaleS; 
+				OGL.vertices[OGL.numVertices].t1 = (vertices[v[i]].t * cache.current[1]->shiftScaleT * gSP.texture.scalet - gSP.textureTile[1]->fult + cache.current[1]->offsetT) * cache.current[1]->scaleT;
+			}
+		}
+		OGL.numVertices++;
 	}
 	OGL.numTriangles++;
+
+	if (OGL.numVertices >= 255)
+		OGL_DrawTriangles();
 }
 
 void OGL_DrawTriangles()
 {
-	// Okay this is a flat out hack for Mario 64. It only works if alpha comes from environment color...
-	if (((RDP.otherMode_L & ALPHACOMPARE) == ALPHACOMPARE_DITHER) &&
-		!(RDP.otherMode_L & RENDERMODE_ALPHA_CVG_SEL))
+	// Slow on anything but GeForce
+	if (OGL.NV_register_combiners && (gDP.otherMode.alphaCompare == G_AC_DITHER) && !(gDP.otherMode.alphaCvgSel))
 	{
 		OGL.lastStipple = (OGL.lastStipple + 1) & 0x7;
-		glPolygonStipple( OGL.stipplePattern[(BYTE)(RDP.envColor.a * 255.0f) >> 3][OGL.lastStipple] );
+		glPolygonStipple( OGL.stipplePattern[(BYTE)(gDP.envColor.a * 255.0f) >> 3][OGL.lastStipple] );
 	}
 
-	OGL_UpdateStates();
-	glDrawElements( GL_TRIANGLES, OGL.numTriangles * 3, GL_UNSIGNED_BYTE, OGL.triangles );
-	OGL.numTriangles = 0;
+	glDrawArrays( GL_TRIANGLES, 0, OGL.numVertices );
+	OGL.numTriangles = OGL.numVertices = 0;  
 }
- 
-void OGL_DrawRect( GLfloat x0, GLfloat y0, GLfloat x1, GLfloat y1, GLcolor color )
+
+void OGL_DrawLine( SPVertex *vertices, int v0, int v1, float width )
+{
+	int v[] = { v0, v1 };
+
+	GLcolor color;
+
+	if (gSP.changed || gDP.changed)
+		OGL_UpdateStates();
+
+	glLineWidth( width * OGL.scaleX );
+
+	glBegin( GL_LINES );
+		for (int i = 0; i < 2; i++)
+		{
+			color.r = vertices[v[i]].r;
+			color.g = vertices[v[i]].g;
+			color.b = vertices[v[i]].b;
+			color.a = vertices[v[i]].a;
+			SetConstant( color, combiner.vertex.color, combiner.vertex.alpha );
+			glColor4fv( &color.r );
+
+			if (OGL.EXT_secondary_color)
+			{
+				color.r = vertices[v[i]].r;
+				color.g = vertices[v[i]].g;
+				color.b = vertices[v[i]].b;
+				color.a = vertices[v[i]].a;
+				SetConstant( color, combiner.vertex.secondaryColor, combiner.vertex.alpha );
+				glSecondaryColor3fvEXT( &color.r );
+			}
+
+			glVertex4f( vertices[v[i]].x, vertices[v[i]].y, vertices[v[i]].z, vertices[v[i]].w );
+		}
+	glEnd();
+}
+
+void OGL_DrawRect( int ulx, int uly, int lrx, int lry, float *color )
 {
 	OGL_UpdateStates();
 
-	glDisable( GL_ALPHA_TEST );
+	glDisable( GL_SCISSOR_TEST );
 	glDisable( GL_CULL_FACE );
-	glDisable( GL_POLYGON_OFFSET_FILL );
- 
 	glMatrixMode( GL_PROJECTION );
     glLoadIdentity();
-	glOrtho( 0, RDP.width, RDP.height, 0, -1.0f, 1.0f );
+	glOrtho( 0, VI.width, VI.height, 0, 1.0f, -1.0f );
+	glViewport( 0, (OGL.frameBufferTextures ? 0 : OGL.heightOffset), OGL.width, OGL.height );
+	glDepthRange( 0.0f, 1.0f );
 
-	glViewport( 0, OGL.heightOffset, OGL.width, OGL.height );
+	glColor4f( color[0], color[1], color[2], color[3] );
 
- 	glColor4f( color.r, color.g, color.b, color.a );
-
-	glBegin(GL_QUADS);
-		glVertex4f( x0, y0, (RDP.otherMode_L & ZSOURCE_PRIMITIVE) ? RDP.primDepth : 0.0f, 1.0f );
-		glVertex4f( x0, y1 + 1,(RDP.otherMode_L & ZSOURCE_PRIMITIVE) ? RDP.primDepth : 0.0f, 1.0f ); 
-		glVertex4f( x1 + 1, y1 + 1, (RDP.otherMode_L & ZSOURCE_PRIMITIVE) ? RDP.primDepth : 0.0f, 1.0f );
-		glVertex4f( x1 + 1, y0, (RDP.otherMode_L & ZSOURCE_PRIMITIVE) ? RDP.primDepth : 0.0f, 1.0f );
+	glBegin( GL_QUADS );
+		glVertex4f( ulx, uly, (gDP.otherMode.depthSource == G_ZS_PRIM) ? gDP.primDepth.z : gSP.viewport.nearz, 1.0f );
+		glVertex4f( lrx, uly, (gDP.otherMode.depthSource == G_ZS_PRIM) ? gDP.primDepth.z : gSP.viewport.nearz, 1.0f );
+		glVertex4f( lrx, lry, (gDP.otherMode.depthSource == G_ZS_PRIM) ? gDP.primDepth.z : gSP.viewport.nearz, 1.0f );
+		glVertex4f( ulx, lry, (gDP.otherMode.depthSource == G_ZS_PRIM) ? gDP.primDepth.z : gSP.viewport.nearz, 1.0f );
 	glEnd();
 
 	glLoadIdentity();
-
-	RSP.update |= UPDATE_CULLMODE | UPDATE_ZINTER | UPDATE_VIEWPORT;
+	OGL_UpdateCullFace();
+	OGL_UpdateViewport();
+	glEnable( GL_SCISSOR_TEST );
 }
 
-void OGL_DrawTexturedRect( float x0, float u0, float y0, float v0,
-						  float x1, float u1, float y1, float v1 )
+void OGL_DrawTexturedRect( float ulx, float uly, float lrx, float lry, float uls, float ult, float lrs, float lrt, bool flip )
 {
 	GLVertex rect[2] =
 	{
-		{ x0, y0, RSP.viewport.nearZ, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, u0, v0, u0, v0 },
-		{ x1, y1, RSP.viewport.nearZ, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, u1, v1, u1, v1 },
+		{ ulx, uly, gDP.otherMode.depthSource == G_ZS_PRIM ? gDP.primDepth.z : gSP.viewport.nearz, 1.0f, { /*gDP.blendColor.r, gDP.blendColor.g, gDP.blendColor.b, gDP.blendColor.a */1.0f, 1.0f, 1.0f, 0.0f }, { 1.0f, 1.0f, 1.0f, 1.0f }, uls, ult, uls, ult, 0.0f },
+		{ lrx, lry, gDP.otherMode.depthSource == G_ZS_PRIM ? gDP.primDepth.z : gSP.viewport.nearz, 1.0f, { /*gDP.blendColor.r, gDP.blendColor.g, gDP.blendColor.b, gDP.blendColor.a*/1.0f, 1.0f, 1.0f, 0.0f }, { 1.0f, 1.0f, 1.0f, 1.0f }, lrs, lrt, lrs, lrt, 0.0f },
 	};
-
-	if (RDP.otherMode_L & ZSOURCE_PRIMITIVE)
-	{
-		rect[0].z = RDP.primDepth;
-		rect[1].z = RDP.primDepth;
-	}
 
 	OGL_UpdateStates();
 
-	// Disable all the stuff not used in TexRect
 	glDisable( GL_CULL_FACE );
-	glDisable( GL_POLYGON_OFFSET_FILL );
-	//glDisable( GL_FOG );
+	glMatrixMode( GL_PROJECTION );
+    glLoadIdentity();
+	glOrtho( 0, VI.width, VI.height, 0, 1.0f, -1.0f );
+	glViewport( 0, (OGL.frameBufferTextures ? 0 : OGL.heightOffset), OGL.width, OGL.height );
 
-	if (OGL.EXT_fog_coord)
-		glFogCoordfEXT( 0.0f );
-
-	// Adjust for OpenGL's corner-based texture coords
-	if (u0 < u1) u1 += 1.0f; else u0 += 1.0f;
-	if (v0 < v1) v1 += 1.0f; else v0 += 1.0f;
-
-	// No blending in copy mode
-	if (((RDP.otherMode_H & TEXTFILT_BILERP) || (RDP.otherMode_H & TEXTFILT_AVERAGE) || (OGL.forceBilinear)) &&
-   		(((RDP.otherMode_H & CYCLETYPE) != CYCLETYPE_COPY) || (OGL.forceBilinear)))
+	if (combiner.usesT0)
 	{
-		// Adjust for bilinear filtering
-		if (!cache.current[0]->clampS)
+		rect[0].s0 = rect[0].s0 * cache.current[0]->shiftScaleS - gSP.textureTile[0]->fuls;
+		rect[0].t0 = rect[0].t0 * cache.current[0]->shiftScaleT - gSP.textureTile[0]->fult;
+		rect[1].s0 = (rect[1].s0 + 1.0f) * cache.current[0]->shiftScaleS - gSP.textureTile[0]->fuls;
+		rect[1].t0 = (rect[1].t0 + 1.0f) * cache.current[0]->shiftScaleT - gSP.textureTile[0]->fult;
+
+		if ((cache.current[0]->maskS) && (fmod( rect[0].s0, cache.current[0]->width ) == 0.0f) && !(cache.current[0]->mirrorS))
 		{
-			u0 += (u0 < u1) ? OGL.originAdjust : -OGL.originAdjust;
-			u1 += (u0 < u1) ? -OGL.originAdjust : OGL.originAdjust;
+			rect[1].s0 -= rect[0].s0;
+			rect[0].s0 = 0.0f;
 		}
 
-		if (!cache.current[0]->clampT)
+		if ((cache.current[0]->maskT) && (fmod( rect[0].t0, cache.current[0]->height ) == 0.0f) && !(cache.current[0]->mirrorT))
 		{
-			v0 += (v0 < v1) ? OGL.originAdjust : -OGL.originAdjust;
-			v1 += (u0 < u1) ? -OGL.originAdjust : OGL.originAdjust;
+			rect[1].t0 -= rect[0].t0;
+			rect[0].t0 = 0.0f;
+		}
+
+		if (cache.current[0]->frameBufferTexture)
+		{
+			rect[0].s0 = cache.current[0]->offsetS + rect[0].s0;
+			rect[0].t0 = cache.current[0]->offsetT - rect[0].t0;
+			rect[1].s0 = cache.current[0]->offsetS + rect[1].s0;
+			rect[1].t0 = cache.current[0]->offsetT - rect[1].t0;
 		}
 
 		if (OGL.ARB_multitexture)
-		{
 			glActiveTextureARB( GL_TEXTURE0_ARB );
-			glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
-			glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
 
-			glActiveTextureARB( GL_TEXTURE1_ARB );
-			glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
-			glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
-		}
-		else
+		if ((rect[0].s0 >= 0.0f) && (rect[1].s0 <= cache.current[0]->width))
+			glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
+		//glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT );
+		//glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT );
+
+		if ((rect[0].t0 >= 0.0f) && (rect[1].t0 <= cache.current[0]->height))
+			glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
+
+//		GLint height;
+
+//		glGetTexLevelParameteriv( GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &height );
+
+		rect[0].s0 *= cache.current[0]->scaleS;
+		rect[0].t0 *= cache.current[0]->scaleT;
+		rect[1].s0 *= cache.current[0]->scaleS;
+		rect[1].t0 *= cache.current[0]->scaleT;
+	}
+
+	if (combiner.usesT1 && OGL.ARB_multitexture)
+	{
+		rect[0].s1 = rect[0].s1 * cache.current[1]->shiftScaleS - gSP.textureTile[1]->fuls;
+		rect[0].t1 = rect[0].t1 * cache.current[1]->shiftScaleT - gSP.textureTile[1]->fult;
+		rect[1].s1 = (rect[1].s1 + 1.0f) * cache.current[1]->shiftScaleS - gSP.textureTile[1]->fuls;
+		rect[1].t1 = (rect[1].t1 + 1.0f) * cache.current[1]->shiftScaleT - gSP.textureTile[1]->fult;
+
+		if ((cache.current[1]->maskS) && (fmod( rect[0].s1, cache.current[1]->width ) == 0.0f) && !(cache.current[1]->mirrorS))
 		{
-			glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
-			glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
+			rect[1].s1 -= rect[0].s1;
+			rect[0].s1 = 0.0f;
 		}
-	}
-	else
-	{
-		if (OGL.ARB_multitexture)
+
+		if ((cache.current[1]->maskT) && (fmod( rect[0].t1, cache.current[1]->height ) == 0.0f) && !(cache.current[1]->mirrorT))
 		{
-			glActiveTextureARB( GL_TEXTURE0_ARB );
-			glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
-			glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
-
-			glActiveTextureARB( GL_TEXTURE1_ARB );
-			glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
-			glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
+			rect[1].t1 -= rect[0].t1;
+			rect[0].t1 = 0.0f;
 		}
-		else
+
+		if (cache.current[1]->frameBufferTexture)
 		{
-			glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
-			glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
+			rect[0].s1 = cache.current[1]->offsetS + rect[0].s1;
+			rect[0].t1 = cache.current[1]->offsetT - rect[0].t1;
+			rect[1].s1 = cache.current[1]->offsetS + rect[1].s1;
+			rect[1].t1 = cache.current[1]->offsetT - rect[1].t1;
 		}
-	}
-
-	// Shift and scale
-	if (RDP.useT0)
-	{
-		rect[0].s0 = u0 * cache.current[0]->scaleS - RSP.textureTile[0]->fulS * cache.current[0]->offsetScaleS;
-		rect[0].t0 = v0 * cache.current[0]->scaleT - RSP.textureTile[0]->fulT * cache.current[0]->offsetScaleT;
-		rect[1].s0 = u1 * cache.current[0]->scaleS - RSP.textureTile[0]->fulS * cache.current[0]->offsetScaleS;
-		rect[1].t0 = v1 * cache.current[0]->scaleT - RSP.textureTile[0]->fulT * cache.current[0]->offsetScaleT;
-	}
-	
-	if (RDP.useT1)
-	{
-		rect[0].s1 = u0 * cache.current[1]->scaleS - RSP.textureTile[1]->fulS * cache.current[1]->offsetScaleS;
-		rect[0].t1 = v0 * cache.current[1]->scaleT - RSP.textureTile[1]->fulT * cache.current[1]->offsetScaleT;
-		rect[1].s1 = u1 * cache.current[1]->scaleS - RSP.textureTile[1]->fulS * cache.current[1]->offsetScaleS;
-		rect[1].t1 = v1 * cache.current[1]->scaleT - RSP.textureTile[1]->fulT * cache.current[1]->offsetScaleT;
-	}
-
-	if (RDP.useNoise)
-	{
-		rect[0].s1 = 0.0f;
-		rect[0].t1 = 0.0f;
-		rect[1].s1 = (x1 - x0) / 64.0f;
-		rect[1].t1 = (y1 - y0) / 64.0f;
 
 		glActiveTextureARB( GL_TEXTURE1_ARB );
+
+		if ((rect[0].s1 == 0.0f) && (rect[1].s1 <= cache.current[1]->width))
+			glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
+
+		if ((rect[0].t1 == 0.0f) && (rect[1].t1 <= cache.current[1]->height))
+			glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
+
+		rect[0].s1 *= cache.current[1]->scaleS;
+		rect[0].t1 *= cache.current[1]->scaleT;
+		rect[1].s1 *= cache.current[1]->scaleS;
+		rect[1].t1 *= cache.current[1]->scaleT;
+	}
+
+	if ((gDP.otherMode.cycleType == G_CYC_COPY) && !OGL.forceBilinear)
+	{
+		if (OGL.ARB_multitexture)
+			glActiveTextureARB( GL_TEXTURE0_ARB );
+
 		glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
 		glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
 	}
 
-	SetConstant( rect[0], combiner.vertex.color, combiner.vertex.alpha );
+	SetConstant( rect[0].color, combiner.vertex.color, combiner.vertex.alpha );
 
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-	glOrtho( 0, RDP.width, RDP.height, 0, 1.0f, -1.0f );
-	glViewport( 0, OGL.heightOffset, OGL.width, OGL.height );
+	if (OGL.EXT_secondary_color)
+		SetConstant( rect[0].secondaryColor, combiner.vertex.secondaryColor, combiner.vertex.alpha );
 
-   	glBegin(GL_QUADS); 
-		glColor4f( rect[0].r, rect[0].g, rect[0].b, rect[0].a );
+	glBegin( GL_QUADS );
+		glColor4f( rect[0].color.r, rect[0].color.g, rect[0].color.b, rect[0].color.a );
+		if (OGL.EXT_secondary_color)
+			glSecondaryColor3fEXT( rect[0].secondaryColor.r, rect[0].secondaryColor.g, rect[0].secondaryColor.b );
 
 		if (OGL.ARB_multitexture)
 		{
@@ -904,36 +863,113 @@ void OGL_DrawTexturedRect( float x0, float u0, float y0, float v0,
 			glMultiTexCoord2fARB( GL_TEXTURE1_ARB, rect[0].s1, rect[0].t1 );
 			glVertex4f( rect[0].x, rect[0].y, rect[0].z, 1.0f );
 
-			glMultiTexCoord2fARB( GL_TEXTURE0_ARB, rect[0].s0, rect[1].t0 );
-			glMultiTexCoord2fARB( GL_TEXTURE1_ARB, rect[0].s1, rect[1].t1 );
-			glVertex4f( rect[0].x, rect[1].y, rect[0].z, 1.0f );
+			glMultiTexCoord2fARB( GL_TEXTURE0_ARB, rect[1].s0, rect[0].t0 );
+			glMultiTexCoord2fARB( GL_TEXTURE1_ARB, rect[1].s1, rect[0].t1 );
+			glVertex4f( rect[1].x, rect[0].y, rect[0].z, 1.0f );
 
 			glMultiTexCoord2fARB( GL_TEXTURE0_ARB, rect[1].s0, rect[1].t0 );
 			glMultiTexCoord2fARB( GL_TEXTURE1_ARB, rect[1].s1, rect[1].t1 );
 			glVertex4f( rect[1].x, rect[1].y, rect[0].z, 1.0f );
 
-			glMultiTexCoord2fARB( GL_TEXTURE0_ARB, rect[1].s0, rect[0].t0 );
-			glMultiTexCoord2fARB( GL_TEXTURE1_ARB, rect[1].s1, rect[0].t1 );
-			glVertex4f( rect[1].x, rect[0].y, rect[0].z, 1.0f );
+			glMultiTexCoord2fARB( GL_TEXTURE0_ARB, rect[0].s0, rect[1].t0 );
+			glMultiTexCoord2fARB( GL_TEXTURE1_ARB, rect[0].s1, rect[1].t1 );
+			glVertex4f( rect[0].x, rect[1].y, rect[0].z, 1.0f );
 		}
 		else
 		{
- 			glTexCoord2f( rect[0].s0, rect[0].t0 );
+			glTexCoord2f( rect[0].s0, rect[0].t0 );
 			glVertex4f( rect[0].x, rect[0].y, rect[0].z, 1.0f );
 
-			glTexCoord2f( rect[0].s0, rect[1].t0 );
-			glVertex4f( rect[0].x, rect[1].y, rect[0].z, 1.0f );
+			if (flip)
+				glTexCoord2f( rect[1].s0, rect[0].t0 );
+			else
+				glTexCoord2f( rect[0].s0, rect[1].t0 );
 
- 			glTexCoord2f( rect[1].s0, rect[1].t0 );
+			glVertex4f( rect[1].x, rect[0].y, rect[0].z, 1.0f );
+
+			glTexCoord2f( rect[1].s0, rect[1].t0 );
 			glVertex4f( rect[1].x, rect[1].y, rect[0].z, 1.0f );
 
- 			glTexCoord2f( rect[1].s0, rect[0].t0 );
-			glVertex4f( rect[1].x, rect[0].y, rect[0].z, 1.0f );
+			if (flip)
+				glTexCoord2f( rect[1].s0, rect[0].t0 );
+			else
+				glTexCoord2f( rect[1].s0, rect[0].t0 );
+			glVertex4f( rect[0].x, rect[1].y, rect[0].z, 1.0f );
 		}
 	glEnd();
 
 	glLoadIdentity();
- 
-	// Need to reset the states I messed up
- 	RSP.update |= UPDATE_CULLMODE | UPDATE_ZINTER | UPDATE_VIEWPORT | UPDATE_FOG;
+	OGL_UpdateCullFace();
+	OGL_UpdateViewport();
+}
+
+void OGL_ClearDepthBuffer()
+{
+	OGL_UpdateStates();
+	glDepthMask( TRUE );
+//	glEnable( GL_DEPTH_TEST );
+	glClear( GL_DEPTH_BUFFER_BIT );
+
+	OGL_UpdateDepthUpdate();	
+}
+
+void OGL_ClearColorBuffer( float *color )
+{
+	glClearColor( color[0], color[1], color[2], color[3] );
+	glClear( GL_COLOR_BUFFER_BIT );
+}
+
+void OGL_SaveScreenshot()
+{
+	BITMAPFILEHEADER fileHeader;
+	BITMAPINFOHEADER infoHeader;
+	HANDLE hBitmapFile;
+
+	char *pixelData = (char*)malloc( OGL.width * OGL.height * 3 );
+
+	glReadBuffer( GL_FRONT );
+	glReadPixels( 0, OGL.heightOffset, OGL.width, OGL.height, GL_BGR_EXT, GL_UNSIGNED_BYTE, pixelData );
+
+	infoHeader.biSize = sizeof( BITMAPINFOHEADER );
+	infoHeader.biWidth = OGL.width;
+	infoHeader.biHeight = OGL.height;
+	infoHeader.biPlanes = 1;
+	infoHeader.biBitCount = 24;
+	infoHeader.biCompression = BI_RGB;
+	infoHeader.biSizeImage = OGL.width * OGL.height * 3;
+	infoHeader.biXPelsPerMeter = 0;
+	infoHeader.biYPelsPerMeter = 0;
+	infoHeader.biClrUsed = 0;
+	infoHeader.biClrImportant = 0;
+
+	fileHeader.bfType = 19778;
+	fileHeader.bfSize = sizeof( BITMAPFILEHEADER ) + sizeof( BITMAPINFOHEADER ) + infoHeader.biSizeImage;
+	fileHeader.bfReserved1 = fileHeader.bfReserved2 = 0;
+	fileHeader.bfOffBits = sizeof( BITMAPFILEHEADER ) + sizeof( BITMAPINFOHEADER );
+
+	char filename[256];
+
+	CreateDirectory( screenDirectory, NULL );
+
+	int i = 0;
+	do
+	{
+		sprintf( filename, "%sscreen%02i.bmp", screenDirectory, i );
+		i++;
+
+		if (i > 99)
+			return;
+
+		hBitmapFile = CreateFile( filename, GENERIC_WRITE, 0, NULL, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL );
+	}
+	while (hBitmapFile == INVALID_HANDLE_VALUE);
+	
+	DWORD written;
+
+	WriteFile( hBitmapFile, &fileHeader, sizeof( BITMAPFILEHEADER ), &written, NULL );
+    WriteFile( hBitmapFile, &infoHeader, sizeof( BITMAPINFOHEADER ), &written, NULL );
+    WriteFile( hBitmapFile, pixelData, infoHeader.biSizeImage, &written, NULL );
+
+ 	CloseHandle( hBitmapFile );
+	free( pixelData );
 }

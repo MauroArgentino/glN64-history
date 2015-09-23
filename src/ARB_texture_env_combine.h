@@ -1,20 +1,6 @@
-typedef struct
-{
-	GLenum source, operand;
-} TexEnvCombinerArg;
-
-typedef struct
-{
-	BOOL used;
-	GLenum combine;
-	TexEnvCombinerArg arg0, arg1, arg2;
-} TexEnvCombinerStage;
-
-typedef struct
-{
-	TexEnvCombinerStage color[8];
-	TexEnvCombinerStage alpha[8];
-} TexEnvCombiner;
+#ifndef ARB_TEXTURE_ENV_COMBINE_H
+#define ARB_TEXTURE_ENV_COMBINE_H
+#include "Combiner.h"
 
 static TexEnvCombinerArg TexEnvArgs[] =
 {
@@ -63,5 +49,9 @@ static TexEnvCombinerArg TexEnvArgs[] =
 };
 
 void Init_ARB_texture_env_combine();
-void Set_ARB_texture_env_combine( Combiner *color, Combiner *alpha );
-void Update_ARB_texture_env_combine_Colors();
+TexEnvCombiner *Generate_ARB_texture_env_combine( Combiner *color, Combiner *alpha );
+void Set_ARB_texture_env_combine( TexEnvCombiner *envCombiner );
+void Update_ARB_texture_env_combine_Colors( TexEnvCombiner* );
+void Uninit_ARB_texture_env_combine();
+
+#endif

@@ -44,3 +44,20 @@ DWORD CRC_Calculate( DWORD crc, void *buffer, DWORD count )
 
     return crc ^ orig;
 }
+
+DWORD CRC_CalculatePalette( DWORD crc, void *buffer, DWORD count )
+{
+    BYTE *p;
+	DWORD orig = crc;
+
+    p = (BYTE*) buffer;
+    while (count--)
+	{
+		crc = (crc >> 8) ^ CRCTable[(crc & 0xFF) ^ *p++];
+		crc = (crc >> 8) ^ CRCTable[(crc & 0xFF) ^ *p++];
+
+		p += 6;
+	}
+
+    return crc ^ orig;
+}

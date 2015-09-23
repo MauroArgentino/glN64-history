@@ -2,36 +2,46 @@
 #include <gl/gl.h>
 #include <gl/glu.h>
 #include <process.h>
-#include "glNintendo64().h"
+#include "glN64.h"
 #include "Debug.h"
 #include "Zilmar GFX 1.3.h"
 #include "OpenGL.h"
 #include "N64.h"
 #include "RSP.h"
 #include "RDP.h"
+#include "VI.h"
 #include "Config.h"
 #include "Textures.h"
+#include "Combiner.h"
 
 HWND		hWnd;
 HWND		hStatusBar;
 HWND		hFullscreen;
 HINSTANCE	hInstance;
 
-char		pluginName[] = "glNintendo64() v0.3.1";
+char		pluginName[] = "glN64 v0.4";
+char		*screenDirectory;
 
 void (*CheckInterrupts)( void );
+
+LONG		windowedStyle;
+LONG		windowedExStyle;
+RECT		windowedRect;
+HMENU		windowedMenu;
 
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD dwReason, LPVOID lpvReserved)
 {
 	hInstance = hinstDLL;
+
 	if (dwReason == DLL_PROCESS_ATTACH)
 	{
 		Config_LoadConfig();
 		RSP.thread = NULL;
 		OGL.hRC = NULL;
 		OGL.hDC = NULL;
-		OGL.hFullscreenRC = NULL;
-		OGL.hFullscreenDC = NULL;
+/*		OGL.hPbufferRC = NULL;
+		OGL.hPbufferDC = NULL;
+		OGL.hPbuffer = NULL;*/
 		hFullscreen = NULL;
 	}
 	return TRUE;
@@ -39,156 +49,86 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD dwReason, LPVOID lpvReserved)
 
 EXPORT void CALL CaptureScreen ( char * Directory )
 {
-	return;
-}
-
-LRESULT CALLBACK FullscreenWndProc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam )
-{
-	switch (uMsg)
+	screenDirectory = Directory;
+#ifdef RSPTHREAD
+	if (RSP.thread)
 	{
-		case WM_SYSCOMMAND:
-			switch (wParam)
-			{
-				case SC_SCREENSAVE:
-				case SC_MONITORPOWER:
-					return 0;
-			}
-			break;
-
-		case WM_CLOSE:
-			PostQuitMessage(0);
-			return 0;
-
-		case WM_MOUSEACTIVATE:
-			return MA_NOACTIVATEANDEAT;
-
-/*		case WM_ACTIVATE:
-			switch (wParam)
-			{
-				case WA_ACTIVE:
-					DEVMODE fullscreenMode;
-					memset( &fullscreenMode, 0, sizeof(DEVMODE) );
-					fullscreenMode.dmSize = sizeof(DEVMODE);
-					fullscreenMode.dmPelsWidth			= OGL.fullscreenWidth;
-					fullscreenMode.dmPelsHeight			= OGL.fullscreenHeight;
-					fullscreenMode.dmBitsPerPel			= OGL.fullscreenBits;
-					fullscreenMode.dmDisplayFrequency	= OGL.fullscreenRefresh;
-					fullscreenMode.dmFields = DM_BITSPERPEL | DM_PELSWIDTH | DM_PELSHEIGHT | DM_DISPLAYFREQUENCY;
-
-					if (ChangeDisplaySettings( &fullscreenMode, CDS_FULLSCREEN )!= DISP_CHANGE_SUCCESSFUL)
-					{
-						MessageBox( NULL, "Failed to change display mode", pluginName, MB_ICONERROR | MB_OK );
-					}
-
-					ShowWindow( hWnd, SW_RESTORE );
-					ShowCursor( FALSE );
-					break;
-
-				case WA_INACTIVE:
-					ShowWindow( hWnd, SW_MINIMIZE );
-					ShowCursor( TRUE );
-					ChangeDisplaySettings( NULL, 0 );
-					break;
-			}
-			return 0;*/
+		SetEvent( RSP.threadMsg[RSPMSG_CAPTURESCREEN] );
+		WaitForSingleObject( RSP.threadFinished, INFINITE );
 	}
-		
-	return DefWindowProc( hWnd, uMsg, wParam, lParam );
-}
-
-BOOL CreateFullscreen()
-{
-	DEVMODE fullscreenMode;
-	memset( &fullscreenMode, 0, sizeof(DEVMODE) );
-	fullscreenMode.dmSize = sizeof(DEVMODE);
-	fullscreenMode.dmPelsWidth			= OGL.fullscreenWidth;
-	fullscreenMode.dmPelsHeight			= OGL.fullscreenHeight;
-	fullscreenMode.dmBitsPerPel			= OGL.fullscreenBits;
-	fullscreenMode.dmDisplayFrequency	= OGL.fullscreenRefresh;
-	fullscreenMode.dmFields = DM_BITSPERPEL | DM_PELSWIDTH | DM_PELSHEIGHT | DM_DISPLAYFREQUENCY;
-
-	if (ChangeDisplaySettings( &fullscreenMode, CDS_FULLSCREEN )!= DISP_CHANGE_SUCCESSFUL)
-	{
-		MessageBox( NULL, "Failed to change display mode", pluginName, MB_ICONERROR | MB_OK );
-		return FALSE;
-	}
-
-	WNDCLASS wc;
-
-	wc.style			= CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
-	wc.lpfnWndProc		= (WNDPROC)FullscreenWndProc;
-	wc.cbClsExtra		= 0;
-	wc.cbWndExtra		= 0;
-	wc.hInstance		= hInstance;
-	wc.hIcon			= NULL;
-	wc.hCursor			= NULL;
-	wc.hbrBackground	= NULL;
-	wc.lpszMenuName		= NULL;
-	wc.lpszClassName	= "glNintendo64()";
-
-	if (!RegisterClass(&wc))
-	{
-		MessageBox( NULL, "Error creating fullscreen window class", pluginName, MB_ICONERROR | MB_OK );
-		ChangeDisplaySettings( NULL, 0 );
-		return FALSE;
-	}
-
-	if (!(hFullscreen = CreateWindowEx(
-		WS_EX_TOPMOST,
-		"glNintendo64()",
-		pluginName,
-		WS_CLIPSIBLINGS |
-		WS_CLIPCHILDREN |
-		WS_POPUP,
-		0, 0,
-		OGL.fullscreenWidth,
-		OGL.fullscreenHeight,
-		hWnd,
-		NULL,
-		hInstance,
-		NULL)))	
-	{
-		MessageBox( NULL, "Failed to create fullscreen window", pluginName, MB_ICONERROR | MB_OK );
-
-		ChangeDisplaySettings( NULL, 0 );
-		UnregisterClass( "glNintendo64()", hInstance );
-		return FALSE;
-	}
-
-	ShowWindow( hFullscreen, SW_SHOW );
-	ShowCursor( FALSE );
-}
-
-void DestroyFullscreen()
-{
-	if (hFullscreen)
-	{
-		ShowCursor( TRUE );
-		DestroyWindow( hFullscreen );
-		UnregisterClass( "glNintendo64()", hInstance );
-		ChangeDisplaySettings( NULL, 0 );
-
-		hFullscreen = NULL;
-	}
+#else
+	OGL_SaveScreenshot();
+#endif
 }
 
 EXPORT void CALL ChangeWindow (void)
 {
-	if (!OGL.fullscreen)
-		if (!CreateFullscreen())
-			return;
-
-	// Anything affecting OpenGL has to be done in the RSP thread,
-	SetEvent( RSP.threadMsg[RSPMSG_CHANGEWINDOW] );
+#ifdef RSPTHREAD
+	// Textures seem to get corrupted when changing video modes (at least on my Radeon), so destroy them
+	SetEvent( RSP.threadMsg[RSPMSG_DESTROYTEXTURES] );
 	WaitForSingleObject( RSP.threadFinished, INFINITE );
 
-	// and anything affecting the main window has to be done is this thread.
 	if (!OGL.fullscreen)
 	{
-		DestroyFullscreen();
+		DEVMODE fullscreenMode;
+		memset( &fullscreenMode, 0, sizeof(DEVMODE) );
+		fullscreenMode.dmSize = sizeof(DEVMODE);
+		fullscreenMode.dmPelsWidth			= OGL.fullscreenWidth;
+		fullscreenMode.dmPelsHeight			= OGL.fullscreenHeight;
+		fullscreenMode.dmBitsPerPel			= OGL.fullscreenBits;
+		fullscreenMode.dmDisplayFrequency	= OGL.fullscreenRefresh;
+		fullscreenMode.dmFields = DM_BITSPERPEL | DM_PELSWIDTH | DM_PELSHEIGHT | DM_DISPLAYFREQUENCY;
 
-		OGL_ResizeWindow( OGL.width, OGL.height );
+		if (ChangeDisplaySettings( &fullscreenMode, CDS_FULLSCREEN ) != DISP_CHANGE_SUCCESSFUL)
+		{
+			MessageBox( NULL, "Failed to change display mode", pluginName, MB_ICONERROR | MB_OK );
+			return;
+		}
+
+		ShowCursor( FALSE );
+
+		windowedMenu = GetMenu( hWnd );
+
+		if (windowedMenu)
+			SetMenu( hWnd, NULL );
+
+		if (hStatusBar)
+			ShowWindow( hStatusBar, SW_HIDE );
+
+		windowedExStyle = GetWindowLong( hWnd, GWL_EXSTYLE );
+		windowedStyle = GetWindowLong( hWnd, GWL_STYLE );
+
+		SetWindowLong( hWnd, GWL_EXSTYLE, WS_EX_APPWINDOW | WS_EX_TOPMOST );
+		SetWindowLong( hWnd, GWL_STYLE, WS_POPUP );
+
+		GetWindowRect( hWnd, &windowedRect );
+
+		OGL.fullscreen = TRUE;
+		OGL_ResizeWindow();
 	}
+	else
+	{
+		ChangeDisplaySettings( NULL, 0 );
+
+		ShowCursor( TRUE );
+
+		if (windowedMenu)
+			SetMenu( hWnd, windowedMenu );
+
+		if (hStatusBar)
+			ShowWindow( hStatusBar, SW_SHOW );
+
+		SetWindowLong( hWnd, GWL_STYLE, windowedStyle );
+		SetWindowLong( hWnd, GWL_EXSTYLE, windowedExStyle );
+		SetWindowPos( hWnd, NULL, windowedRect.left, windowedRect.top, 0, 0, SWP_NOZORDER | SWP_NOSIZE );
+
+		OGL.fullscreen = FALSE;
+		OGL_ResizeWindow();
+	}
+
+	SetEvent( RSP.threadMsg[RSPMSG_INITTEXTURES] );
+	WaitForSingleObject( RSP.threadFinished, INFINITE );
+#endif
 }
 
 EXPORT void CALL CloseDLL (void)
@@ -197,7 +137,7 @@ EXPORT void CALL CloseDLL (void)
 
 EXPORT void CALL DllAbout ( HWND hParent )
 {
-	MessageBox( hParent, "glNintendo64() v0.3.1 by Orkin\n\nWebsite: http://gln64.emulation64.com/", pluginName, MB_OK );
+	MessageBox( hParent, "glN64 v0.4 by Orkin\n\nWebsite: http://gln64.emulation64.com/\n\nThanks to Clements, Rice, Gonetz, Malcolm, Dave2001, cryhlove, icepir8, zilmar, Azimer, and StrmnNrmn", pluginName, MB_OK | MB_ICONINFORMATION );
 }
 
 EXPORT void CALL DllConfig ( HWND hParent )
@@ -267,23 +207,60 @@ EXPORT void CALL MoveScreen (int xpos, int ypos)
 
 EXPORT void CALL ProcessDList(void)
 {
+#ifdef RSPTHREAD
 	if (RSP.thread)
 	{
 		SetEvent( RSP.threadMsg[RSPMSG_PROCESSDLIST] );
 		WaitForSingleObject( RSP.threadFinished, INFINITE );
 	}
+#else
+	RSP_ProcessDList();
+#endif
 }
 
 EXPORT void CALL ProcessRDPList(void)
 {
+	//*REG.DPC_CURRENT = *REG.DPC_START;
+/*	RSP.PCi = 0;
+	RSP.PC[RSP.PCi] = *REG.DPC_CURRENT;
+	
+	RSP.halt = FALSE;
+
+	while (RSP.PC[RSP.PCi] < *REG.DPC_END)
+	{
+		RSP.cmd0 = *(DWORD*)&RDRAM[RSP.PC[RSP.PCi]];
+		RSP.cmd1 = *(DWORD*)&RDRAM[RSP.PC[RSP.PCi] + 4];
+		RSP.PC[RSP.PCi] += 8;
+
+/*		if ((RSP.cmd0 >> 24) == 0xE9)
+		{
+			*REG.MI_INTR |= MI_INTR_DP;
+			CheckInterrupts();
+		}
+		if ((RSP.cmd0 >> 24) == 0xCD)
+			RSP.cmd0 = RSP.cmd0;
+
+		GFXOp[RSP.cmd0 >> 24]();*/
+		//*REG.DPC_CURRENT += 8;
+//	}
 }
 
 EXPORT void CALL RomClosed (void)
 {
+#ifdef RSPTHREAD
 	int i;
 
 	if (RSP.thread)
 	{
+//		if (OGL.fullscreen)
+//			ChangeWindow();
+
+		if (RSP.busy)
+		{
+			RSP.halt = TRUE;
+			WaitForSingleObject( RSP.threadFinished, INFINITE );
+		}
+
 		SetEvent( RSP.threadMsg[RSPMSG_CLOSE] );
 		WaitForSingleObject( RSP.threadFinished, INFINITE );
 		for (i = 0; i < 4; i++)
@@ -294,6 +271,9 @@ EXPORT void CALL RomClosed (void)
 	}
 
 	RSP.thread = NULL;
+#else
+	OGL_Stop();
+#endif
 
 #ifdef DEBUG
 	CloseDebugDlg();
@@ -302,16 +282,17 @@ EXPORT void CALL RomClosed (void)
 
 EXPORT void CALL RomOpen (void)
 {
+#ifdef RSPTHREAD
 	DWORD threadID;
 	int i;
 
 	// Create RSP message events
-	for (i = 0; i < 4; i++) 
+	for (i = 0; i < 6; i++) 
 	{ 
 		RSP.threadMsg[i] = CreateEvent( NULL, FALSE, FALSE, NULL );
 		if (RSP.threadMsg[i] == NULL)
 		{ 
-			MessageBox( hWnd, "Error creating video thread message events, closing video thread...", "glNintendo64() Error", MB_OK | MB_ICONERROR );
+			MessageBox( hWnd, "Error creating video thread message events, closing video thread...", "glN64 Error", MB_OK | MB_ICONERROR );
 			return;
 		} 
 	} 
@@ -320,31 +301,38 @@ EXPORT void CALL RomOpen (void)
 	RSP.threadFinished = CreateEvent( NULL, FALSE, FALSE, NULL );
 	if (RSP.threadFinished == NULL)
 	{ 
-		MessageBox( hWnd, "Error creating video thread finished event, closing video thread...", "glNintendo64() Error", MB_OK | MB_ICONERROR );
+		MessageBox( hWnd, "Error creating video thread finished event, closing video thread...", "glN64 Error", MB_OK | MB_ICONERROR );
 		return;
 	} 
 
 	RSP.thread = CreateThread( NULL, 4096, RSP_ThreadProc, NULL, NULL, &threadID );
-	//WaitForSingleObject( RSP.threadFinished, INFINITE );
+	WaitForSingleObject( RSP.threadFinished, INFINITE );
+#else
+	RSP_Init();
+#endif
+
+	OGL_ResizeWindow();
 
 #ifdef DEBUG
 	OpenDebugDlg();
-	RSP.dumpNextDL = TRUE;
 #endif
 }
 
 EXPORT void CALL ShowCFB (void)
-{
-	
+{	
 }
 
 EXPORT void CALL UpdateScreen (void)
 {
+#ifdef RSPTHREAD
 	if (RSP.thread)
 	{
-		SetEvent( RSP.threadMsg[RSPMSG_SWAPBUFFERS] );
+		SetEvent( RSP.threadMsg[RSPMSG_UPDATESCREEN] );
 		WaitForSingleObject( RSP.threadFinished, INFINITE );
 	}
+#else
+	VI_UpdateScreen();
+#endif
 }
 
 EXPORT void CALL ViStatusChanged (void)

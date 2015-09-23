@@ -141,7 +141,7 @@ inline void Transpose3x3Matrix( float mtx[4][4] )
 	}
 }
 
-inline void TransformVertex( float vtx[4], float mtx[4][4], float perspNorm )
+inline void TransformVertex( float vtx[4], float mtx[4][4] )//, float perspNorm )
 {
 	__asm {
 		mov		esi, dword ptr [vtx]

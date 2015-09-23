@@ -1,6 +1,7 @@
 #include <windows.h>
+#include <stdio.h>
 #include "Config.h"
-#include "glNintendo64().h"
+#include "glN64.h"
 #include "Resource.h"
 #include "RSP.h"
 #include "Textures.h"
@@ -53,70 +54,97 @@ struct
 
 void Config_LoadConfig()
 {
-	int i;
-	char text[256];
-	OGL.fullscreenWidth = GetPrivateProfileInt( "Display", "Fullscreen Width", 640, "plugin\\glNintendo64().ini" );
-	OGL.fullscreenHeight = GetPrivateProfileInt( "Display", "Fullscreen Height", 480, "plugin\\glNintendo64().ini" );
-	OGL.fullscreenBits = GetPrivateProfileInt( "Display", "Fullscreen Bit Depth", 16, "plugin\\glNintendo64().ini" );
-	OGL.fullscreenRefresh = GetPrivateProfileInt( "Display", "Fullscreen Refresh Rate", 60, "plugin\\glNintendo64().ini" );
-	OGL.windowedWidth = GetPrivateProfileInt( "Display", "Windowed Width", 640, "plugin\\glNintendo64().ini" );
-	OGL.windowedHeight = GetPrivateProfileInt( "Display", "Windowed Height", 480, "plugin\\glNintendo64().ini" );
-	OGL.forceBilinear = GetPrivateProfileInt( "Display", "Force Bilinear", 0, "plugin\\glNintendo64().ini" );
-	OGL.enable2xSaI = GetPrivateProfileInt( "Display", "Enable 2xSaI", 0, "plugin\\glNintendo64().ini" );
-	OGL.fog = GetPrivateProfileInt( "Display", "Fog", 1, "plugin\\glNintendo64().ini" );
-	
-	cache.maxBytes = GetPrivateProfileInt( "Emulation", "Cache Size", 32, "plugin\\glNintendo64().ini" ) * 1048576;
-	OGL.combiner = GetPrivateProfileInt( "Emulation", "Combiner", 0, "plugin\\glNintendo64().ini" );
+	DWORD value, size;
+
+	HKEY hKey;
+
+	RegOpenKeyEx( HKEY_CURRENT_USER, "Software\\N64 Emulation\\DLL\\glN64", 0, KEY_READ, &hKey );
+
+	if (hKey)
+	{
+        RegQueryValueEx( hKey, "Fullscreen Bit Depth", 0, NULL, (BYTE*)&OGL.fullscreenBits, &size );
+		RegQueryValueEx( hKey, "Fullscreen Width", 0, NULL, (BYTE*)&OGL.fullscreenWidth, &size );
+		RegQueryValueEx( hKey, "Fullscreen Height", 0, NULL, (BYTE*)&OGL.fullscreenHeight, &size );
+		RegQueryValueEx( hKey, "Fullscreen Refresh Rate", 0, NULL, (BYTE*)&OGL.fullscreenRefresh, &size );
+		RegQueryValueEx( hKey, "Windowed Width", 0, NULL, (BYTE*)&OGL.windowedWidth, &size );
+		RegQueryValueEx( hKey, "Windowed Height", 0, NULL, (BYTE*)&OGL.windowedHeight, &size );
+		RegQueryValueEx( hKey, "Windowed Width", 0, NULL, (BYTE*)&OGL.windowedWidth, &size );
+		RegQueryValueEx( hKey, "Force Bilinear", 0, NULL, (BYTE*)&value, &size );
+		OGL.forceBilinear = value ? TRUE : FALSE;
+
+		RegQueryValueEx( hKey, "Enable 2xSaI", 0, NULL, (BYTE*)&value, &size );
+		OGL.enable2xSaI = value ? TRUE : FALSE;
+
+		RegQueryValueEx( hKey, "Enable Fog", 0, NULL, (BYTE*)&value, &size );
+		OGL.fog = value ? TRUE : FALSE;
+
+		RegQueryValueEx( hKey, "Texture Cache Size", 0, NULL, (BYTE*)&value, &size );
+		cache.maxBytes = value * 1048576;
+
+		RegQueryValueEx( hKey, "Hardware Frame Buffer Textures", 0, NULL, (BYTE*)&value, &size );
+		OGL.frameBufferTextures = value ? TRUE : FALSE;
+
+		RegQueryValueEx( hKey, "Texture Bit Depth", 0, NULL, (BYTE*)&value, &size );
+		OGL.textureBitDepth = value;
+
+		RegCloseKey( hKey );
+	}
+	else
+	{
+		OGL.fog = TRUE;
+		OGL.windowedWidth = 640;
+		OGL.windowedHeight = 480;
+		OGL.fullscreenWidth = 640;
+		OGL.fullscreenHeight = 480;
+		OGL.fullscreenBits = 16;
+		OGL.fullscreenRefresh = 60;
+		OGL.forceBilinear = FALSE;
+		cache.maxBytes = 32 * 1048576;
+		OGL.frameBufferTextures = FALSE;
+		OGL.enable2xSaI = FALSE;
+		OGL.textureBitDepth = 1;
+	}
 }
 
 void Config_SaveConfig()
 {
-	int i;
-	char text[256];
+	DWORD value;
+	HKEY hKey;
 
-	itoa( OGL.fullscreenBits, text, 10 );
-	WritePrivateProfileString( "Display", "Fullscreen Bit Depth", text, "plugin\\glNintendo64().ini" );
-	itoa( OGL.fullscreenWidth, text, 10 );
-	WritePrivateProfileString( "Display", "Fullscreen Width", text, "plugin\\glNintendo64().ini" );
-	itoa( OGL.fullscreenHeight, text, 10 );
-	WritePrivateProfileString( "Display", "Fullscreen Height", text, "plugin\\glNintendo64().ini" );
-	itoa( OGL.fullscreenRefresh, text, 10 );
-	WritePrivateProfileString( "Display", "Fullscreen Refresh Rate", text, "plugin\\glNintendo64().ini" );
+	RegCreateKeyEx( HKEY_CURRENT_USER, "Software\\N64 Emulation\\DLL\\glN64", 0, NULL, REG_OPTION_NON_VOLATILE, KEY_WRITE, NULL, &hKey, NULL );
 
-	itoa( OGL.windowedWidth, text, 10 );
-	WritePrivateProfileString( "Display", "Windowed Width", text, "plugin\\glNintendo64().ini" );
-	itoa( OGL.windowedHeight, text, 10 );
-	WritePrivateProfileString( "Display", "Windowed Height", text, "plugin\\glNintendo64().ini" );
+	RegSetValueEx( hKey, "Fullscreen Bit Depth", 0, REG_DWORD, (BYTE*)&OGL.fullscreenBits, 4 );
+	RegSetValueEx( hKey, "Fullscreen Width", 0, REG_DWORD, (BYTE*)&OGL.fullscreenWidth, 4 );
+	RegSetValueEx( hKey, "Fullscreen Height", 0, REG_DWORD, (BYTE*)&OGL.fullscreenHeight, 4 );
+	RegSetValueEx( hKey, "Fullscreen Refresh", 0, REG_DWORD, (BYTE*)&OGL.fullscreenRefresh, 4 );
+	RegSetValueEx( hKey, "Windowed Width", 0, REG_DWORD, (BYTE*)&OGL.windowedWidth, 4 );
+	RegSetValueEx( hKey, "Windowed Height", 0, REG_DWORD, (BYTE*)&OGL.windowedHeight, 4 );
 
-	WritePrivateProfileString( "Display", "Force Bilinear", OGL.forceBilinear ? "1" : "0", "plugin\\glNintendo64().ini" );
-	WritePrivateProfileString( "Display", "Enable 2xSaI", OGL.enable2xSaI ? "1" : "0", "plugin\\glNintendo64().ini" );
-	WritePrivateProfileString( "Display", "Fog", OGL.fog ? "1" : "0", "plugin\\glNintendo64().ini" );
+	value = OGL.forceBilinear ? 1 : 0;
+	RegSetValueEx( hKey, "Force Bilinear", 0, REG_DWORD, (BYTE*)&value, 4 );
 
-	itoa( cache.maxBytes / 1048576, text, 10 );
-	WritePrivateProfileString( "Emulation", "Cache Size", text, "plugin\\glNintendo64().ini" );
+	value = OGL.enable2xSaI ? 1 : 0;
+	RegSetValueEx( hKey, "Enable 2xSaI", 0, REG_DWORD, (BYTE*)&value, 4 );
 
-	itoa( OGL.combiner, text, 10 );
-	WritePrivateProfileString( "Emulation", "Combiner", text, "plugin\\glNintendo64().ini" );
+	value = OGL.fog ? 1 : 0;
+	RegSetValueEx( hKey, "Enable Fog", 0, REG_DWORD, (BYTE*)&value, 4 );
+
+	value = cache.maxBytes / 1048576;
+	RegSetValueEx( hKey, "Texture Cache Size", 0, REG_DWORD, (BYTE*)&value, 4 );
+
+	value = OGL.frameBufferTextures ? 1 : 0;
+	RegSetValueEx( hKey, "Hardware Frame Buffer Textures", 0, REG_DWORD, (BYTE*)&value, 4 );
+
+	value = OGL.textureBitDepth;
+	RegSetValueEx( hKey, "Texture Bit Depth", 0, REG_DWORD, (BYTE*)&value, 4 );
+
+	RegCloseKey( hKey );
 }
 
 void Config_ApplyDlgConfig( HWND hWndDlg )
 {
 	char text[256];
 	int i;
-
-	if ((SendDlgItemMessage( hWndDlg, IDC_FORCEUCODE, BM_GETCHECK, NULL, NULL ) == BST_CHECKED) &&
-		(MessageBox( hWndDlg, "Warning: Forcing the plug-in to the incorrect microcode could cause the emulator to crash. Make sure you set the correct microcode before continuing\n\nAre you sure you want to force the microcode?", "glNintendo64() Warning", MB_YESNO ) == IDYES))
-	{
-		RSP.forceUCode = TRUE;
- 		RSP_SetUCode( SendDlgItemMessage( hWndDlg, IDC_UCODE, CB_GETCURSEL, NULL, NULL ) );
-	}
-	else
-	{
-		RSP.forceUCode = FALSE;
-		SendDlgItemMessage( hWndDlg, IDC_FORCEUCODE, BM_SETCHECK, BST_UNCHECKED, NULL );
-		SendDlgItemMessage( hWndDlg, IDC_UCODE, CB_SETCURSEL, (LPARAM)RSP.uCode, NULL );
-		EnableWindow( GetDlgItem( hWndDlg, IDC_UCODE ), FALSE );
-	}
 
 	SendDlgItemMessage( hWndDlg, IDC_CACHEMEGS, WM_GETTEXT, 4, (LPARAM)text );
 	cache.maxBytes = atol( text ) * 1048576;
@@ -132,14 +160,17 @@ void Config_ApplyDlgConfig( HWND hWndDlg )
 	OGL.fullscreenHeight = fullscreen.resolution[i].height;
 	OGL.fullscreenRefresh = fullscreen.refreshRate[SendDlgItemMessage( hWndDlg, IDC_FULLSCREENREFRESH, CB_GETCURSEL, 0, 0 )];
 
+	i = SendDlgItemMessage( hWndDlg, IDC_TEXTUREBPP, CB_GETCURSEL, 0, 0 );
+	OGL.textureBitDepth = i;
+
 	i = SendDlgItemMessage( hWndDlg, IDC_WINDOWEDRES, CB_GETCURSEL, 0, 0 );
 	OGL.windowedWidth = windowedModes[i].width;
 	OGL.windowedHeight = windowedModes[i].height;
 
-	OGL.combiner = SendDlgItemMessage( hWndDlg, IDC_COMBINER, CB_GETCURSEL, NULL, NULL );
+	OGL.frameBufferTextures = (SendDlgItemMessage( hWndDlg, IDC_FRAMEBUFFER, BM_GETCHECK, NULL, NULL ) == BST_CHECKED);
 
-	if ((!OGL.fullscreen) && (OGL.hRC))
-		OGL_ResizeWindow( OGL.windowedWidth, OGL.windowedHeight );
+	if (!OGL.fullscreen)
+		OGL_ResizeWindow();
 
 	Config_SaveConfig();
 }
@@ -278,32 +309,18 @@ BOOL CALLBACK ConfigDlgProc( HWND hWndDlg, UINT message, WPARAM wParam, LPARAM l
 				}
 			}
 			SendDlgItemMessage( hWndDlg, IDC_ENABLE2XSAI, BM_SETCHECK, OGL.enable2xSaI ? (LPARAM)BST_CHECKED : (LPARAM)BST_UNCHECKED, NULL );
-			// Set forced microcode check box
-			SendDlgItemMessage( hWndDlg, IDC_FORCEUCODE, BM_SETCHECK, RSP.forceUCode ? (LPARAM)BST_CHECKED : (LPARAM)BST_UNCHECKED, NULL );
 			// Set forced bilinear check box
 			SendDlgItemMessage( hWndDlg, IDC_FORCEBILINEAR, BM_SETCHECK, OGL.forceBilinear ? (LPARAM)BST_CHECKED : (LPARAM)BST_UNCHECKED, NULL );
-			// Enable/disable ucode list box
-			EnableWindow( GetDlgItem( hWndDlg, IDC_UCODE ), RSP.forceUCode );
+			SendDlgItemMessage( hWndDlg, IDC_TEXTUREBPP, CB_ADDSTRING, 0, (LPARAM)"16-bit only (faster)" );
+			SendDlgItemMessage( hWndDlg, IDC_TEXTUREBPP, CB_ADDSTRING, 0, (LPARAM)"16-bit and 32-bit (normal)" );
+			SendDlgItemMessage( hWndDlg, IDC_TEXTUREBPP, CB_ADDSTRING, 0, (LPARAM)"32-bit only (best for 2xSaI)" );
+			SendDlgItemMessage( hWndDlg, IDC_TEXTUREBPP, CB_SETCURSEL, OGL.textureBitDepth, 0 );
 			// Enable/disable fog
 			SendDlgItemMessage( hWndDlg, IDC_FOG, BM_SETCHECK, OGL.fog ? (LPARAM)BST_CHECKED : (LPARAM)BST_UNCHECKED, NULL );
-			// Add Combiners
-			SendDlgItemMessage( hWndDlg, IDC_COMBINER, CB_ADDSTRING, NULL, (LPARAM)"GeForce" );
-			SendDlgItemMessage( hWndDlg, IDC_COMBINER, CB_ADDSTRING, NULL, (LPARAM)"OpenGL 1.4" );
-			// Select active combiner
-			SendDlgItemMessage( hWndDlg, IDC_COMBINER, CB_SETCURSEL, (LPARAM)OGL.combiner, NULL );
-			// Add ucodes to list
-			SendDlgItemMessage( hWndDlg, IDC_UCODE, CB_ADDSTRING, NULL, (LPARAM)"Fast3D Series" );
-			SendDlgItemMessage( hWndDlg, IDC_UCODE, CB_ADDSTRING, NULL, (LPARAM)"Fast3D EXT" );
-			SendDlgItemMessage( hWndDlg, IDC_UCODE, CB_ADDSTRING, NULL, (LPARAM)"F3DEX Series" );
-			SendDlgItemMessage( hWndDlg, IDC_UCODE, CB_ADDSTRING, NULL, (LPARAM)"F3DEX2 Series" );
-			// Select active ucode
-			SendDlgItemMessage( hWndDlg, IDC_UCODE, CB_SETCURSEL, (LPARAM)RSP.uCode, NULL );
+			SendDlgItemMessage( hWndDlg, IDC_FRAMEBUFFER, BM_SETCHECK, OGL.frameBufferTextures ? (LPARAM)BST_CHECKED : (LPARAM)BST_UNCHECKED, NULL );
 
 			_ltoa( cache.maxBytes / 1048576, text, 10 );
 			SendDlgItemMessage( hWndDlg, IDC_CACHEMEGS, WM_SETTEXT, NULL, (LPARAM)text );
-
-			// Deactivate apply button
-			EnableWindow( GetDlgItem( hWndDlg, IDC_APPLY ), FALSE );
 
 			return TRUE;
 
@@ -321,31 +338,12 @@ BOOL CALLBACK ConfigDlgProc( HWND hWndDlg, UINT message, WPARAM wParam, LPARAM l
 					hConfigDlg = NULL;
                     return TRUE;
 
-				case IDC_APPLY:
-					Config_ApplyDlgConfig( hWndDlg );
-					EnableWindow( GetDlgItem( hWndDlg, IDC_APPLY ), FALSE );
-					return TRUE;
-				case IDC_FORCEUCODE:
-					EnableWindow( GetDlgItem( hWndDlg, IDC_UCODE ), SendDlgItemMessage( hWndDlg, IDC_FORCEUCODE, BM_GETCHECK, NULL, NULL ) == BST_CHECKED );
-				case IDC_UCODE:
-				case IDC_COMBINER:
-				case IDC_FOG:
-				case IDC_ENABLE2XSAI:
-				case IDC_FORCEBILINEAR:
-				case IDC_WIREFRAME:
-					EnableWindow( GetDlgItem( hWndDlg, IDC_APPLY ), TRUE );
-					return TRUE;
-				case IDC_WINDOWEDRES:
-					if (HIWORD(wParam) == CBN_SELCHANGE)
-						EnableWindow( GetDlgItem( hWndDlg, IDC_APPLY ), TRUE );
-					return TRUE;
 				case IDC_FULLSCREENBITDEPTH:
 					if (HIWORD(wParam) == CBN_SELCHANGE)
 					{
 						fullscreen.selected.bitDepth = fullscreen.bitDepth[SendDlgItemMessage( hWndDlg, IDC_FULLSCREENBITDEPTH, CB_GETCURSEL, 0, 0 )];
 
 						UpdateFullscreenConfig( hWndDlg );
-						EnableWindow( GetDlgItem( hWndDlg, IDC_APPLY ), TRUE );
 					}
 					break;
 				case IDC_FULLSCREENRES:
@@ -356,7 +354,6 @@ BOOL CALLBACK ConfigDlgProc( HWND hWndDlg, UINT message, WPARAM wParam, LPARAM l
 						fullscreen.selected.height = fullscreen.resolution[i].height;
 
 						UpdateFullscreenConfig( hWndDlg );
-						EnableWindow( GetDlgItem( hWndDlg, IDC_APPLY ), TRUE );
 					}
 					break;
 				case IDC_FULLSCREENREFRESH:
@@ -365,7 +362,6 @@ BOOL CALLBACK ConfigDlgProc( HWND hWndDlg, UINT message, WPARAM wParam, LPARAM l
 						fullscreen.selected.refreshRate = fullscreen.refreshRate[SendDlgItemMessage( hWndDlg, IDC_FULLSCREENREFRESH, CB_GETCURSEL, 0, 0 )];
 
 						UpdateFullscreenConfig( hWndDlg );
-						EnableWindow( GetDlgItem( hWndDlg, IDC_APPLY ), TRUE );
 					}
 					break;
 			} 

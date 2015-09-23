@@ -2,8 +2,8 @@
 <VisualStudioProject
 	ProjectType="Visual C++"
 	Version="7.00"
-	Name="glNintendo64()"
-	ProjectGUID="{85A8DD3D-3DD6-42B1-80A5-D6E59B762342}"
+	Name="glN64"
+	ProjectGUID="{37D31D7F-C4E7-45B0-AEF6-D6824A243CF7}"
 	Keyword="Win32Proj">
 	<Platforms>
 		<Platform
@@ -19,7 +19,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS;_USRDLL;GLNINTENDO64_EXPORTS"
+				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS;_USRDLL;NEWGLNINTENDO64_EXPORTS"
 				MinimalRebuild="TRUE"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="1"
@@ -31,13 +31,13 @@
 				Name="VCCustomBuildTool"/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="opengl32.lib Winmm.lib"
-				OutputFile="d:/game files/emulators/nintendo 64/Project64/plugin/glNintendo64().dll"
+				AdditionalDependencies="opengl32.lib glu32.lib winmm.lib"
+				OutputFile="c:\game files\emulators\nintendo 64\plugin\glNintendo64().dll"
 				LinkIncremental="2"
 				GenerateDebugInformation="TRUE"
-				ProgramDatabaseFile="$(OutDir)/glNintendo64().pdb"
+				ProgramDatabaseFile="$(OutDir)/New glNintendo64().pdb"
 				SubSystem="2"
-				ImportLibrary="$(OutDir)/glNintendo64().lib"
+				ImportLibrary="$(OutDir)/New glNintendo64().lib"
 				TargetMachine="1"/>
 			<Tool
 				Name="VCMIDLTool"/>
@@ -64,36 +64,32 @@
 				Name="VCCLCompilerTool"
 				Optimization="2"
 				GlobalOptimizations="TRUE"
-				InlineFunctionExpansion="2"
+				InlineFunctionExpansion="1"
 				EnableIntrinsicFunctions="TRUE"
-				ImproveFloatingPointConsistency="FALSE"
 				FavorSizeOrSpeed="1"
 				OmitFramePointers="TRUE"
-				EnableFiberSafeOptimizations="TRUE"
 				OptimizeForProcessor="2"
 				OptimizeForWindowsApplication="TRUE"
-				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;_USRDLL;GLNINTENDO64_EXPORTS"
+				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;_USRDLL;NEWGLNINTENDO64_EXPORTS"
 				StringPooling="TRUE"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="TRUE"
 				UsePrecompiledHeader="0"
 				WarningLevel="3"
 				Detect64BitPortabilityProblems="TRUE"
-				DebugInformationFormat="3"
-				CompileAs="2"/>
+				DebugInformationFormat="3"/>
 			<Tool
 				Name="VCCustomBuildTool"/>
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalDependencies="opengl32.lib winmm.lib"
-				OutputFile="d:/game files/emulators/nintendo 64/project64/plugin/glNintendo64().dll"
+				OutputFile="c:/game files/emulators/nintendo 64/plugin/glN64 v0.4.dll"
 				LinkIncremental="1"
-				GenerateDebugInformation="FALSE"
+				GenerateDebugInformation="TRUE"
 				SubSystem="2"
 				OptimizeReferences="2"
 				EnableCOMDATFolding="2"
-				OptimizeForWindows98="2"
-				ImportLibrary="$(OutDir)/glNintendo64().lib"
+				ImportLibrary="$(OutDir)/New glNintendo64().lib"
 				TargetMachine="1"/>
 			<Tool
 				Name="VCMIDLTool"/>
@@ -111,15 +107,15 @@
 				Name="VCWebDeploymentTool"/>
 		</Configuration>
 		<Configuration
-			Name="1964 Debug|Win32"
-			OutputDirectory="1964 Debug"
-			IntermediateDirectory="1964 Debug"
+			Name="Debug 1964|Win32"
+			OutputDirectory="Debug 1964"
+			IntermediateDirectory="Debug 1964"
 			ConfigurationType="2"
 			CharacterSet="2">
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS;_USRDLL;GLNINTENDO64_EXPORTS"
+				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS;_USRDLL;NEWGLNINTENDO64_EXPORTS"
 				MinimalRebuild="TRUE"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="1"
@@ -131,13 +127,13 @@
 				Name="VCCustomBuildTool"/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="opengl32.lib"
-				OutputFile="d:/game files/emulators/nintendo 64/1964/plugin/glNintendo64().dll"
+				AdditionalDependencies="opengl32.lib glu32.lib winmm.lib"
+				OutputFile="c:\game files\emulators\nintendo 64\plugin\glNintendo64().dll"
 				LinkIncremental="2"
 				GenerateDebugInformation="TRUE"
-				ProgramDatabaseFile="$(OutDir)/glNintendo64().pdb"
+				ProgramDatabaseFile="$(OutDir)/New glNintendo64().pdb"
 				SubSystem="2"
-				ImportLibrary="$(OutDir)/glNintendo64().lib"
+				ImportLibrary="$(OutDir)/New glNintendo64().lib"
 				TargetMachine="1"/>
 			<Tool
 				Name="VCMIDLTool"/>
@@ -163,9 +159,6 @@
 				RelativePath="2xSAI.cpp">
 			</File>
 			<File
-				RelativePath="ARB_texture_env_combine.cpp">
-			</File>
-			<File
 				RelativePath="CRC.cpp">
 			</File>
 			<File
@@ -178,19 +171,16 @@
 				RelativePath="Debug.cpp">
 			</File>
 			<File
-				RelativePath="F3DEX.cpp">
+				RelativePath="DepthBuffer.cpp">
 			</File>
 			<File
-				RelativePath="F3DEX2.cpp">
+				RelativePath="FrameBuffer.cpp">
 			</File>
 			<File
-				RelativePath="Fast3D.cpp">
+				RelativePath="GBI.cpp">
 			</File>
 			<File
 				RelativePath="N64.cpp">
-			</File>
-			<File
-				RelativePath="NV_register_combiners.cpp">
 			</File>
 			<File
 				RelativePath="OpenGL.cpp">
@@ -202,14 +192,70 @@
 				RelativePath="RSP.cpp">
 			</File>
 			<File
-				RelativePath="S2DEX.cpp">
-			</File>
-			<File
 				RelativePath="Textures.cpp">
 			</File>
 			<File
-				RelativePath="glNintendo64().cpp">
+				RelativePath="VI.cpp">
 			</File>
+			<File
+				RelativePath="gDP.cpp">
+			</File>
+			<File
+				RelativePath="gSP.cpp">
+			</File>
+			<File
+				RelativePath="glN64.cpp">
+			</File>
+			<Filter
+				Name="uCodes"
+				Filter="">
+				<File
+					RelativePath="F3D.cpp">
+				</File>
+				<File
+					RelativePath="F3DDKR.cpp">
+				</File>
+				<File
+					RelativePath="F3DEX.cpp">
+				</File>
+				<File
+					RelativePath="F3DEX2.cpp">
+				</File>
+				<File
+					RelativePath="F3DPD.cpp">
+				</File>
+				<File
+					RelativePath="F3DWRUS.cpp">
+				</File>
+				<File
+					RelativePath="L3D.cpp">
+				</File>
+				<File
+					RelativePath="L3DEX.cpp">
+				</File>
+				<File
+					RelativePath="L3DEX2.cpp">
+				</File>
+				<File
+					RelativePath="S2DEX.cpp">
+				</File>
+				<File
+					RelativePath="S2DEX2.cpp">
+				</File>
+			</Filter>
+			<Filter
+				Name="Combiners"
+				Filter="">
+				<File
+					RelativePath="NV_register_combiners.cpp">
+				</File>
+				<File
+					RelativePath="texture_env.cpp">
+				</File>
+				<File
+					RelativePath="texture_env_combine.cpp">
+				</File>
+			</Filter>
 		</Filter>
 		<Filter
 			Name="Header Files"
@@ -219,9 +265,6 @@
 			</File>
 			<File
 				RelativePath="3DMath.h">
-			</File>
-			<File
-				RelativePath="ARB_texture_env_combine.h">
 			</File>
 			<File
 				RelativePath="CRC.h">
@@ -236,22 +279,16 @@
 				RelativePath="Debug.h">
 			</File>
 			<File
-				RelativePath="F3DEX.h">
+				RelativePath="DepthBuffer.h">
 			</File>
 			<File
-				RelativePath="F3DEX2.h">
+				RelativePath="FrameBuffer.h">
 			</File>
 			<File
-				RelativePath="Fast3D.h">
-			</File>
-			<File
-				RelativePath="GBI.H">
+				RelativePath="GBI.h">
 			</File>
 			<File
 				RelativePath="N64.h">
-			</File>
-			<File
-				RelativePath="NV_register_combiners.h">
 			</File>
 			<File
 				RelativePath="OpenGL.h">
@@ -263,10 +300,13 @@
 				RelativePath="RSP.h">
 			</File>
 			<File
-				RelativePath="S2DEX.h">
+				RelativePath="Textures.h">
 			</File>
 			<File
-				RelativePath="Textures.h">
+				RelativePath="Types.h">
+			</File>
+			<File
+				RelativePath="VI.h">
 			</File>
 			<File
 				RelativePath="Zilmar GFX 1.3.h">
@@ -275,7 +315,16 @@
 				RelativePath="convert.h">
 			</File>
 			<File
-				RelativePath="glNintendo64().h">
+				RelativePath="gDP.h">
+			</File>
+			<File
+				RelativePath="gSP.h">
+			</File>
+			<File
+				RelativePath="glATI.h">
+			</File>
+			<File
+				RelativePath="glN64.h">
 			</File>
 			<File
 				RelativePath="glext.h">
@@ -283,6 +332,59 @@
 			<File
 				RelativePath="resource.h">
 			</File>
+			<File
+				RelativePath="wglext.h">
+			</File>
+			<Filter
+				Name="uCodes"
+				Filter="">
+				<File
+					RelativePath="F3D.h">
+				</File>
+				<File
+					RelativePath="F3DDKR.h">
+				</File>
+				<File
+					RelativePath="F3DEX.h">
+				</File>
+				<File
+					RelativePath="F3DEX2.h">
+				</File>
+				<File
+					RelativePath="F3DPD.h">
+				</File>
+				<File
+					RelativePath="F3DWRUS.h">
+				</File>
+				<File
+					RelativePath="L3D.h">
+				</File>
+				<File
+					RelativePath="L3DEX.h">
+				</File>
+				<File
+					RelativePath="L3DEX2.h">
+				</File>
+				<File
+					RelativePath="S2DEX.h">
+				</File>
+				<File
+					RelativePath="S2DEX2.h">
+				</File>
+			</Filter>
+			<Filter
+				Name="Combiners"
+				Filter="">
+				<File
+					RelativePath="NV_register_combiners.h">
+				</File>
+				<File
+					RelativePath="texture_env.h">
+				</File>
+				<File
+					RelativePath="texture_env_combine.h">
+				</File>
+			</Filter>
 		</Filter>
 		<Filter
 			Name="Resource Files"

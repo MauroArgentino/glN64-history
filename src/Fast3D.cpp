@@ -1,634 +1,381 @@
-#include <windows.h>
-#include "gl/gl.h"
-#include "glNintendo64().h"
-#include "Fast3D.h"
+#include "glN64.h"
 #include "Debug.h"
+#include "F3D.h"
 #include "N64.h"
 #include "RSP.h"	
 #include "RDP.h"
-#include "3DMath.h"
+#include "gSP.h"
+#include "gDP.h"
+#include "GBI.h"
 
-void Fast3D_SPNoOp()
+void F3D_SPNoOp( u32 w0, u32 w1 )
 {
-#ifdef DEBUG
-	DebugMsg( DEBUG_HANDLED | DEBUG_IGNORED, "0x%08X: 0x%08X 0x%08X Fast3D_NoOp\r\n", RSP.PC[RSP.PCi], RSP.cmd0, RSP.cmd1 );
-	DebugMsg( DEBUG_HANDLED | DEBUG_IGNORED, "\tIgnored\r\n" );
-#endif
-	RSP.PC[RSP.PCi] += 8;
+	gSPNoOp();
 }
 
-void Fast3D_Mtx()
+void F3D_Mtx( u32 w0, u32 w1 )
 {
-	// The N64 stores the matrix values as s15.16 fixed-point numbers
-	// with the all the integer parts first, and then the fractional parts
-
-	BYTE command = (BYTE)(RSP.cmd0 >> 16);
-
-	DWORD address = RSP_SegmentAddress(RSP.cmd1);
-
-	float mtx[4][4];
-
-	RSP_LoadMatrix( mtx, address );
-
-	if (command & FAST3D_MTX_PROJECTION)
+	if (_SHIFTR( w0, 0, 16 ) != 64)
 	{
-        if (command & FAST3D_MTX_LOAD)
-			CopyMatrix( RSP.projectionMtx, mtx );
-		else
-			MultMatrix( RSP.projectionMtx, mtx );
-	}
-	else
-	{
-		if ((command & FAST3D_MTX_PUSH) && (RSP.modelViewi < 9))
-		{
-			CopyMatrix( RSP.modelViewStack[RSP.modelViewi+1], RSP.modelViewStack[RSP.modelViewi] );
-			RSP.modelViewi++;
-		}
-
-		if (command & FAST3D_MTX_LOAD)
-			CopyMatrix( RSP.modelViewStack[RSP.modelViewi], mtx );
-		else
-			MultMatrix( RSP.modelViewStack[RSP.modelViewi], mtx );
-
-		RSP.update |= UPDATE_LIGHTS;
-	}
-
-	RSP.update |= UPDATE_COMBINEDMATRIX;
-
+//		GBI_DetectUCode(); // Something's wrong
 #ifdef DEBUG
-	DebugMsg( DEBUG_HANDLED, "0x%08X: 0x%08X 0x%08X Fast3D_Mtx\r\n", RSP.PC[RSP.PCi], RSP.cmd0, RSP.cmd1 );
-	DebugMsg( DEBUG_HANDLED, "\t%s%s%s\r\n", (command & FAST3D_MTX_PUSH) ? "Push " : "Don't push ",
-											 (command & FAST3D_MTX_PROJECTION) ? "projection matrix " : "world matrix ",
-											 (command & FAST3D_MTX_LOAD) ? "and load:" : "and multiply by:" );
-	DebugMsg( DEBUG_HANDLED, "\t%#15.6f %#15.6f %#15.6f %#15.6f\r\n", mtx[0][0], mtx[1][0], mtx[2][0], mtx[3][0] );
-	DebugMsg( DEBUG_HANDLED, "\t%#15.6f %#15.6f %#15.6f %#15.6f\r\n", mtx[0][1], mtx[1][1], mtx[2][1], mtx[3][1] );
-	DebugMsg( DEBUG_HANDLED, "\t%#15.6f %#15.6f %#15.6f %#15.6f\r\n", mtx[0][2], mtx[1][2], mtx[2][2], mtx[3][2] );
-	DebugMsg( DEBUG_HANDLED, "\t%#15.6f %#15.6f %#15.6f %#15.6f\r\n", mtx[0][3], mtx[1][3], mtx[2][3], mtx[3][3] );
+	DebugMsg( DEBUG_MEDIUM | DEBUG_HIGH | DEBUG_ERROR, "G_MTX: address = 0x%08X    length = %i    params = 0x%02X\n", w1, _SHIFTR( w0, 0, 16 ), _SHIFTR( w0, 16, 8 ) );
 #endif
-
-	RSP.PC[RSP.PCi] += 8;
-}
-
-void Fast3D_Reserved0()
-{
-#ifdef DEBUG
-	DebugMsg( DEBUG_HANDLED | DEBUG_IGNORED, "0x%08X: 0x%08X 0x%08X Fast3D_Reserved0\r\n", RSP.PC[RSP.PCi], RSP.cmd0, RSP.cmd1 );
-	DebugMsg( DEBUG_HANDLED | DEBUG_IGNORED, "\tIgnored\r\n" );
-#endif
-	RSP.PC[RSP.PCi] += 8;
-}
-
-void Fast3D_MoveMem()
-{
-	BYTE type = (BYTE)(RSP.cmd0 >> 16) & 0xFF;
-	WORD size = (WORD)RSP.cmd0 & 0xFFFF;
-	DWORD address = RSP_SegmentAddress(RSP.cmd1);
-
-	switch (type)
-	{
-		case FAST3D_MOVEMEM_VIEWPORT:
-/*			float scale[4];
-			float trans[4];
-
-			scale[0] = (float)*(SHORT*)&RDRAM[address+2] * 0.25f;
-			scale[1] = (float)*(SHORT*)&RDRAM[address+0] * 0.25f;
-			//scale[2] = (float)*(SHORT*)&RDRAM[address+6] * 0.25f;
-			//scale[3] = (float)*(SHORT*)&RDRAM[address+4] * 0.25f;
-
-			trans[0] = (float)*(SHORT*)&RDRAM[address+10] * 0.25f;
-			trans[1] = (float)*(SHORT*)&RDRAM[address+8] * 0.25f;
-			//trans[2] = (float)*(SHORT*)&RDRAM[address+14] * 0.25f;
-			//trans[3] = (float)*(SHORT*)&RDRAM[address+12] * 0.25f;*/
-
-			float scale[3];
-			float trans[3];
-
-			scale[0] = *(SHORT*)&RDRAM[address+2] * 0.25f;
-			scale[1] = *(SHORT*)&RDRAM[address+0] * 0.25f;
-			scale[2] = *(SHORT*)&RDRAM[address+6] * 9.7847357e-04f;
-
-			trans[0] = *(SHORT*)&RDRAM[address+10] * 0.25f;
-			trans[1] = *(SHORT*)&RDRAM[address+8] * 0.25f;
-			trans[2] = *(SHORT*)&RDRAM[address+14] * 9.7847357e-04f;
-
-			RSP.viewport.x = trans[0] - scale[0];
-			RSP.viewport.y = trans[1] + scale[1];
-			RSP.viewport.width = scale[0] * 2;
-			RSP.viewport.height = scale[1] * 2;
-			RSP.viewport.nearZ = trans[2] - scale[2];
-			RSP.viewport.farZ = trans[2] + scale[2];
-
-			RSP.update |= UPDATE_VIEWPORT;
-
-#ifdef DEBUG
-			DebugMsg( DEBUG_HANDLED, "0x%08X: 0x%08X 0x%08X Fast3D_MoveMem\r\n", RSP.PC[RSP.PCi], RSP.cmd0, RSP.cmd1 );
-			DebugMsg( DEBUG_HANDLED, "\tMOVEMEM_VIEWPORT: scale[0] = %f, scale[1] = %f, scale[2] = %f, scale[3] = %f\r\n", scale[0], scale[1], scale[2], scale[3] );
-			DebugMsg( DEBUG_HANDLED, "\t                  trans[0] = %f, trans[1] = %f, trans[2] = %f, trans[3] = %f\r\n", trans[0], trans[1], trans[2], trans[3] );
-#endif
-			break;
-
-		case FAST3D_MOVEMEM_LIGHT0:
-		case FAST3D_MOVEMEM_L1GHT1:
-		case FAST3D_MOVEMEM_LIGHT2:
-		case FAST3D_MOVEMEM_LIGHT3:
-		case FAST3D_MOVEMEM_LIGHT4:
-		case FAST3D_MOVEMEM_LIGHT5:
-		case FAST3D_MOVEMEM_LIGHT6:
-		case FAST3D_MOVEMEM_LIGHT7:
-			BYTE light;
-			light = ((type - FAST3D_MOVEMEM_LIGHT0) >> 1);
-
-			RSPLight *tempLight;
-			tempLight = (RSPLight*)&RDRAM[address];
-
-			RSP.lights[light].x = tempLight->x;
-			RSP.lights[light].y = tempLight->y;
-			RSP.lights[light].z = tempLight->z;
-
-			RSP.lights[light].r = tempLight->r * 0.0039215689f;
-			RSP.lights[light].g = tempLight->g * 0.0039215689f;
-			RSP.lights[light].b = tempLight->b * 0.0039215689f;
-
-			RSP.update |= UPDATE_LIGHTS;
-
-#ifdef DEBUG
-			DebugMsg( DEBUG_HANDLED, "0x%08X: 0x%08X 0x%08X Fast3D_MoveMem\r\n", RSP.PC[RSP.PCi], RSP.cmd0, RSP.cmd1 );
-			DebugMsg( DEBUG_HANDLED, "\tMOVEMEM_LIGHT%i: R = %u, G = %u, B = %u, X = %i, Y = %i, Z = %i\r\n", light,
-				RSP.lights[light].r, RSP.lights[light].g, RSP.lights[light].b, RSP.lights[light].x, RSP.lights[light].y, RSP.lights[light].z );
-#endif
-			break;			
-		default:
-#ifdef DEBUG
-			DebugMsg( DEBUG_UNKNOWN, "0x%08X: 0x%08X 0x%08X Fast3D_MoveMem\r\n", RSP.PC[RSP.PCi], RSP.cmd0, RSP.cmd1 );
-			DebugMsg( DEBUG_UNKNOWN, "\tUnknown MoveMem command %i\r\n", type );
-#endif
-			break;
-	}
-	RSP.PC[RSP.PCi] += 8;
-}
-
-void Fast3D_Vtx()
-{
-	DWORD address = RSP_SegmentAddress(RSP.cmd1);
-	BYTE num = (BYTE)((RSP.cmd0 >> 20) & 0x0F) + 1;
-	BYTE v0 = (BYTE)((RSP.cmd0 >> 16) & 0x0F);
-
-	// Make sure it's valid
-	if (((RSP.cmd0 & 0xFFFF) >> 4) != num)
-		if (RSP_DetectUCode())
-			return; // Found a matching uCode
-
-	if (v0 + num > 16)
-	{
-#ifdef DEBUG
-		DebugMsg( DEBUG_ERROR | DEBUG_IGNORED, "0x%08X: 0x%08X 0x%08X Fast3D_Vtx\r\n", RSP.PC[RSP.PCi], RSP.cmd0, RSP.cmd1 );
-		DebugMsg( DEBUG_ERROR | DEBUG_IGNORED, "\tAttempting to write vertices to invalid location, ignoring\r\n" );
-#endif
-		RSP.PC[RSP.PCi] += 8;
 		return;
 	}
 
-#ifdef DEBUG
-	DebugMsg( DEBUG_HANDLED, "0x%08X: 0x%08X 0x%08X Fast3D_Vertex\r\n", RSP.PC[RSP.PCi], RSP.cmd0, RSP.cmd1 );
-#endif
-
-	RSP_LoadVertices( address, v0, num );
-
-	RSP.PC[RSP.PCi] += 8;
+	gSPMatrix( w1, _SHIFTR( w0, 16, 8 ) );
 }
 
-void Fast3D_Reserved1()
+void F3D_Reserved0( u32 w0, u32 w1 )
 {
 #ifdef DEBUG
-	DebugMsg( DEBUG_HANDLED | DEBUG_IGNORED, "0x%08X: 0x%08X 0x%08X Fast3D_Reserved1\r\n", RSP.PC[RSP.PCi], RSP.cmd0, RSP.cmd1 );
-	DebugMsg( DEBUG_HANDLED | DEBUG_IGNORED, "\tIgnored\r\n" );
+	DebugMsg( DEBUG_MEDIUM | DEBUG_IGNORED | DEBUG_UNKNOWN, "G_RESERVED0: w0=0x%08lX w1=0x%08lX\n", w0, w1 );
 #endif
-	RSP.PC[RSP.PCi] += 8;
 }
 
-void Fast3D_DL()
+void F3D_MoveMem( u32 w0, u32 w1 )
 {
-	BYTE push = (BYTE)((RSP.cmd0 >> 16) & 0xFF);
-	DWORD address = RSP_SegmentAddress( RSP.cmd1 );
-
-	if (push == FAST3D_DL_PUSH)
+	switch (_SHIFTR( w0, 16, 8 ))
 	{
-		if (RSP.PCi < 7)
-		{
-#ifdef DEBUG
-		DebugMsg( DEBUG_HANDLED, "0x%08X: 0x%08X 0x%08X Fast3D_DL\r\n", RSP.PC[RSP.PCi], RSP.cmd0, RSP.cmd1 );
-		DebugMsg( DEBUG_HANDLED, "\tPushing PC stack to %i and executing DL at 0x%08X\r\n", RSP.PCi + 1, address );
-#endif
-			RSP.PC[RSP.PCi] += 8;
-			RSP.PCi++;
-			RSP.PC[RSP.PCi] = address;
-		}
-		else
-		{
-			RSP.halt = TRUE;
-#ifdef DEBUG
-		DebugMsg( DEBUG_ERROR, "0x%08X: 0x%08X 0x%08X Fast3D_DL\r\n", RSP.PC[RSP.PCi], RSP.cmd0, RSP.cmd1 );
-		DebugMsg( DEBUG_ERROR, "\tPC Stack overflow, ending display list execution\r\n" );
-#endif
-		}
-	}
-	else
-	{
-		RSP.PC[RSP.PCi] = address;
-#ifdef DEBUG
-		DebugMsg( DEBUG_HANDLED, "0x%08X: 0x%08X 0x%08X Fast3D_DL\r\n", RSP.PC[RSP.PCi], RSP.cmd0, RSP.cmd1 );
-		DebugMsg( DEBUG_HANDLED, "\tExecuting DL at 0x%08X\r\n", RSP.PC[RSP.PCi] );
-#endif
-	}
-}
-
-void Fast3D_Reserved2()
-{
-#ifdef DEBUG
-	DebugMsg( DEBUG_HANDLED | DEBUG_IGNORED, "0x%08X: 0x%08X 0x%08X Fast3D_Reserved2\r\n", RSP.PC[RSP.PCi], RSP.cmd0, RSP.cmd1 );
-	DebugMsg( DEBUG_HANDLED | DEBUG_IGNORED, "\tIgnored\r\n" );
-#endif
-	RSP.PC[RSP.PCi] += 8;
-}
-
-void Fast3D_Reserved3()
-{
-#ifdef DEBUG
-	DebugMsg( DEBUG_HANDLED | DEBUG_IGNORED, "0x%08X: 0x%08X 0x%08X Fast3D_Reserved3\r\n", RSP.PC[RSP.PCi], RSP.cmd0, RSP.cmd1 );
-	DebugMsg( DEBUG_HANDLED | DEBUG_IGNORED, "\tIgnored\r\n" );
-#endif
-	RSP.PC[RSP.PCi] += 8;
-}
-
-void Fast3D_Sprite2D_Base()
-{
-#ifdef DEBUG
-	DebugMsg( DEBUG_UNHANDLED, "0x%08X: 0x%08X 0x%08X Fast3D_Sprite2D_Base\r\n", RSP.PC[RSP.PCi], RSP.cmd0, RSP.cmd1 );
-	DebugMsg( DEBUG_UNHANDLED, "\tUnhandled\r\n" );
-#endif
-	RSP.PC[RSP.PCi] += 8;
-}
-
-void Fast3D_RDPHalf_2()
-{
-#ifdef DEBUG
-	DebugMsg( DEBUG_UNHANDLED | DEBUG_IGNORED, "0x%08X: 0x%08X 0x%08X Fast3D_RDPHalf_1\r\n", RSP.PC[RSP.PCi], RSP.cmd0, RSP.cmd1 );
-	DebugMsg( DEBUG_UNHANDLED | DEBUG_IGNORED, "\tIgnored\r\n" );
-#endif
-	RSP.PC[RSP.PCi] += 8;
-}
-
-void Fast3D_RDPHalf_1()
-{
-#ifdef DEBUG
-	DebugMsg( DEBUG_UNHANDLED | DEBUG_IGNORED, "0x%08X: 0x%08X 0x%08X Fast3D_RDPHalf_2\r\n", RSP.PC[RSP.PCi], RSP.cmd0, RSP.cmd1 );
-	DebugMsg( DEBUG_UNHANDLED | DEBUG_IGNORED, "\tIgnored\r\n" );
-#endif
-	RSP.PC[RSP.PCi] += 8;
-}
-
-void Fast3D_Line3D()
-{
-#ifdef DEBUG
-	DebugMsg( DEBUG_UNHANDLED, "0x%08X: 0x%08X 0x%08X Fast3D_Line3D\r\n", RSP.PC[RSP.PCi], RSP.cmd0, RSP.cmd1 );
-	DebugMsg( DEBUG_UNHANDLED, "\tUnhandled\r\n" );
-#endif
-	RSP.PC[RSP.PCi] += 8;
-}
-
-void Fast3D_ClearGeometryMode()
-{
-	DWORD old = RSP.geometryMode;
-	RSP.geometryMode &= ~RSP.cmd1;
-	RSP.changed.geometryMode |= old ^ RSP.geometryMode;
-
-#ifdef DEBUG
-	DebugMsg( DEBUG_HANDLED | DEBUG_UNHANDLED, "0x%08X: 0x%08X 0x%08X Fast3D_ClearGeometryMode\r\n", RSP.PC[RSP.PCi], RSP.cmd0, RSP.cmd1 );
-	DebugMsg( DEBUG_HANDLED | DEBUG_UNHANDLED, "\tGeometry Mode = 0x0x%08X\r\n", RSP.geometryMode );
-#endif
-	RSP.PC[RSP.PCi] += 8;
-}
-
-void Fast3D_SetGeometryMode()
-{
-	DWORD old = RSP.geometryMode;
-	RSP.geometryMode |= RSP.cmd1;
-	RSP.changed.geometryMode |= old ^ RSP.cmd1;
-
-#ifdef DEBUG
-	DebugMsg( DEBUG_HANDLED | DEBUG_UNHANDLED, "0x%08X: 0x%08X 0x%08X Fast3D_SetGeometryMode\r\n", RSP.PC[RSP.PCi], RSP.cmd0, RSP.cmd1 );
-	DebugMsg( DEBUG_HANDLED | DEBUG_UNHANDLED, "\tGeometry Mode = 0x%08X\r\n", RSP.geometryMode );
-#endif
-	RSP.PC[RSP.PCi] += 8;
-}
-
-void Fast3D_EndDL()
-{
-	if (RSP.PCi > 0)
-	{
-#ifdef DEBUG
-		DebugMsg( DEBUG_HANDLED, "0x%08X: 0x%08X 0x%08X Fast3D_EndDL\r\n", RSP.PC[RSP.PCi], RSP.cmd0, RSP.cmd1 );
-		DebugMsg( DEBUG_HANDLED, "\tPopping PC Stack, PCi=%i\r\n", RSP.PCi-1 );
-#endif
-		RSP.PCi--;
-	}
-	else
-	{
-		RSP.halt = TRUE;
-#ifdef DEBUG
-		DebugMsg( DEBUG_HANDLED, "0x%08X: 0x%08X 0x%08X Fast3D_EndDL\r\n", RSP.PC[RSP.PCi], RSP.cmd0, RSP.cmd1 );
-		DebugMsg( DEBUG_HANDLED, "\tEnding Display List Execution\r\n" );
-#endif
-	}
-}
-
-void Fast3D_SetOtherMode_L()
-{
-	DWORD shift = (RSP.cmd0 >> 8) & 0xFF;
-	DWORD length = RSP.cmd0 & 0xFF;
-	DWORD mask = ((1 << length) - 1) << shift;
-	DWORD old = RDP.otherMode_L;
-
-	RDP.otherMode_L &= ~mask;
-	RDP.otherMode_L |= RSP.cmd1 & mask;
-	RDP.changed.otherMode_L |= old ^ RDP.otherMode_L;
-
-#ifdef DEBUG
-	switch (shift)
-	{
-		case OTHERMODE_L_ALPHACOMPARE:
-			DebugMsg( DEBUG_HANDLED, "0x%08X: 0x%08X 0x%08X Fast3D_SetOtherMode_L\r\n", RSP.PC[RSP.PCi], RSP.cmd0, RSP.cmd1 );
-			DebugMsg( DEBUG_HANDLED, "\tAlphaCompare: %s%s%s\r\n",
-				(RSP.cmd1 & ALPHACOMPARE_NONE)			? "None, "			: "",
-				(RSP.cmd1 & ALPHACOMPARE_THRESHOLD)		? "Threshold, "		: "",
-				(RSP.cmd1 & ALPHACOMPARE_DITHER)		? "Dither, "		: "" );
+		case F3D_MV_VIEWPORT://G_MV_VIEWPORT:
+			gSPViewport( w1 );
 			break;
+		case G_MV_MATRIX_1:
+			gSPForceMatrix( w1 );
 
-		case OTHERMODE_L_RENDERMODE:
-			if (RDP.otherMode_L & (RENDERMODE_Z_COMPARE | RENDERMODE_Z_UPDATE | RENDERMODE_ZMODE_DECAL))
-				RSP.update |= UPDATE_ZMODE;	
-
-			if (RDP.otherMode_L & RENDERMODE_FORCE_BL)
-				RSP.update = RSP.update;
-			DebugMsg( DEBUG_HANDLED, "0x%08X: 0x%08X 0x%08X Fast3D_SetOtherMode_L\r\n", RSP.PC[RSP.PCi], RSP.cmd0, RSP.cmd1 );
-			DebugMsg( DEBUG_HANDLED, "\tRenderMode: %s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\r\n",
-				(RSP.cmd1 & RENDERMODE_AA_ENABLE)		? "AA Enable"		: "",
-				(RSP.cmd1 & RENDERMODE_Z_COMPARE)		? ", Z Compare"		: "",
-				(RSP.cmd1 & RENDERMODE_Z_UPDATE)		? ", Z Update"		: "",
-				(RSP.cmd1 & RENDERMODE_IM_RD)			? ", Im Rd"			: "",
-				(RSP.cmd1 & RENDERMODE_CLR_ON_CVG)		? ", Clr on CVG"	: "",
-				(RSP.cmd1 & RENDERMODE_CVG_DST_CLAMP)	? ", CVG Dst Clamp" : "",
-				(RSP.cmd1 & RENDERMODE_CVG_DST_WRAP)	? ", CVG Dst Wrap"	: "",
-				(RSP.cmd1 & RENDERMODE_CVG_DST_FULL)	? ", CVG Dst Full"	: "",
-				(RSP.cmd1 & RENDERMODE_CVG_DST_SAVE)	? ", CVG Dst Save"	: "",
-				(RSP.cmd1 & RENDERMODE_ZMODE_OPA)		? ", ZMode Opa"		: "",
-				(RSP.cmd1 & RENDERMODE_ZMODE_INTER)		? ", ZMode Inter"	: "",
-				(RSP.cmd1 & RENDERMODE_ZMODE_XLU)		? ", ZMode XLU"		: "",
-				(RSP.cmd1 & RENDERMODE_ZMODE_DECAL)		? ", ZMode Decal"	: "",
-				(RSP.cmd1 & RENDERMODE_CVG_X_ALPHA)		? ", CVG X Alpha"	: "",
-				(RSP.cmd1 & RENDERMODE_ALPHA_CVG_SEL)	? ", Alpha CVG Sel"	: "",
-				(RSP.cmd1 & RENDERMODE_FORCE_BL)		? ", Force Bl"		: "",
-				(RSP.cmd1 & RENDERMODE_TEX_EDGE)		? ", Tex Edge"		: "" );
-
+			// force matrix takes four commands
+			RSP.PC[RSP.PCi] += 24;
 			break;
-		case OTHERMODE_L_BLENDER:
-				RSP.blender = RDP.otherMode_L & 0xFFFF0000;
+		case G_MV_L0:
+			gSPLight( w1, LIGHT_1 );
+			break;
+		case G_MV_L1:
+			gSPLight( w1, LIGHT_2 );
+			break;
+		case G_MV_L2:
+			gSPLight( w1, LIGHT_3 );
+			break;
+		case G_MV_L3:
+			gSPLight( w1, LIGHT_4 );
+			break;
+		case G_MV_L4:
+			gSPLight( w1, LIGHT_5 );
+			break;
+		case G_MV_L5:
+			gSPLight( w1, LIGHT_6 );
+			break;
+		case G_MV_L6:
+			gSPLight( w1, LIGHT_7 );
+			break;
+		case G_MV_L7:
+			gSPLight( w1, LIGHT_8 );
+			break;
+		case G_MV_LOOKATX:
+			break;
+		case G_MV_LOOKATY:
+			break;
+	}
+}
+
+void F3D_Vtx( u32 w0, u32 w1 )
+{
+	gSPVertex( w1, _SHIFTR( w0, 20, 4 ) + 1, _SHIFTR( w0, 16, 4 ) );
+}
+
+void F3D_Reserved1( u32 w0, u32 w1 )
+{
+}
+
+void F3D_DList( u32 w0, u32 w1 )
+{
+	switch (_SHIFTR( w0, 16, 8 ))
+	{
+		case G_DL_PUSH:
+			gSPDisplayList( w1 );
+			break;
+		case G_DL_NOPUSH:
+			gSPBranchList( w1 );
+			break;
+	}
+}
+
+void F3D_Reserved2( u32 w0, u32 w1 )
+{
+}
+
+void F3D_Reserved3( u32 w0, u32 w1 )
+{
+}
+
+void F3D_Sprite2D_Base( u32 w0, u32 w1 )
+{
+	//gSPSprite2DBase( w1 );
+	RSP.PC[RSP.PCi] += 8;
+}
+
+void F3D_Tri1( u32 w0, u32 w1 )
+{
+	gSP1Triangle( _SHIFTR( w1, 16, 8 ) / 10, 
+		          _SHIFTR( w1, 8, 8 ) / 10, 
+				  _SHIFTR( w1, 0, 8 ) / 10, 
+				  _SHIFTR( w1, 24, 8 ) );
+}
+
+void F3D_CullDL( u32 w0, u32 w1 )
+{
+	gSPCullDisplayList( _SHIFTR( w0, 0, 24 ) / 40, (w1 / 40) - 1 );
+}
+
+void F3D_PopMtx( u32 w0, u32 w1 )
+{
+	gSPPopMatrix( w1 );
+}
+
+void F3D_MoveWord( u32 w0, u32 w1 )
+{
+	switch (_SHIFTR( w0, 0, 8 ))
+	{
+		case G_MW_MATRIX:
+			gSPInsertMatrix( _SHIFTR( w0, 8, 16 ), w1 );
+			break;
+		case G_MW_NUMLIGHT:
+			gSPNumLights( ((w1 - 0x80000000) >> 5) - 1 );
+			break;
+		case G_MW_CLIP:
+			gSPClipRatio( w1 );
+			break;
+		case G_MW_SEGMENT:
+			gSPSegment( _SHIFTR( w0, 8, 16 ) >> 2, w1 & 0x00FFFFFF );
+			break;
+		case G_MW_FOG:
+/*			u32 fm, fo, min, max;
+
+			fm = _SHIFTR( w1, 16, 16 );
+			fo = _SHIFTR( w1, 0, 16 );
+
+			min = 500 - (fo * (128000 / fm)) / 256;
+			max = (128000 / fm) + min;*/
+
+			gSPFogFactor( (s16)_SHIFTR( w1, 16, 16 ), (s16)_SHIFTR( w1, 0, 16 ) );
+			break;
+		case G_MW_LIGHTCOL:
+			switch (_SHIFTR( w0, 8, 16 ))
+			{
+				case F3D_MWO_aLIGHT_1:
+					gSPLightColor( LIGHT_1, w1 );
+					break;
+				case F3D_MWO_aLIGHT_2:
+					gSPLightColor( LIGHT_2, w1 );
+					break;
+				case F3D_MWO_aLIGHT_3:
+					gSPLightColor( LIGHT_3, w1 );
+					break;
+				case F3D_MWO_aLIGHT_4:
+					gSPLightColor( LIGHT_4, w1 );
+					break;
+				case F3D_MWO_aLIGHT_5:
+					gSPLightColor( LIGHT_5, w1 );
+					break;
+				case F3D_MWO_aLIGHT_6:
+					gSPLightColor( LIGHT_6, w1 );
+					break;
+				case F3D_MWO_aLIGHT_7:
+					gSPLightColor( LIGHT_7, w1 );
+					break;
+				case F3D_MWO_aLIGHT_8:
+					gSPLightColor( LIGHT_8, w1 );
+					break;
+			}
+			break;
+		case G_MW_POINTS:
+			gSPModifyVertex( _SHIFTR( w0, 8, 16 ) / 40, _SHIFTR( w0, 0, 8 ) % 40, w1 );
+			break;
+		case G_MW_PERSPNORM:
+			gSPPerspNormalize( w1 );
+			break;
+	}
+}
+
+void F3D_Texture( u32 w0, u32 w1 )
+{
+	gSPTexture( _FIXED2FLOAT( _SHIFTR( w1, 16, 16 ), 16 ), 
+		        _FIXED2FLOAT( _SHIFTR( w1, 0, 16 ), 16 ), 
+		        _SHIFTR( w0, 11, 3 ), 
+				_SHIFTR( w0, 8, 3 ), 
+				_SHIFTR( w0, 0, 8 ) );
+}
+
+void F3D_SetOtherMode_H( u32 w0, u32 w1 )
+{
+	switch (_SHIFTR( w0, 8, 8 ))
+	{
+		case G_MDSFT_PIPELINE:
+			gDPPipelineMode( w1 >> G_MDSFT_PIPELINE );
+			break;
+		case G_MDSFT_CYCLETYPE:
+			gDPSetCycleType( w1 >> G_MDSFT_CYCLETYPE );
+			break;
+		case G_MDSFT_TEXTPERSP:
+			gDPSetTexturePersp( w1 >> G_MDSFT_TEXTPERSP );
+			break;
+		case G_MDSFT_TEXTDETAIL:
+			gDPSetTextureDetail( w1 >> G_MDSFT_TEXTDETAIL );
+			break;
+		case G_MDSFT_TEXTLOD:
+			gDPSetTextureLOD( w1 >> G_MDSFT_TEXTLOD );
+			break;
+		case G_MDSFT_TEXTLUT:
+			gDPSetTextureLUT( w1 >> G_MDSFT_TEXTLUT );
+			break;
+		case G_MDSFT_TEXTFILT:
+			gDPSetTextureFilter( w1 >> G_MDSFT_TEXTFILT );
+			break;
+		case G_MDSFT_TEXTCONV:
+			gDPSetTextureConvert( w1 >> G_MDSFT_TEXTCONV );
+			break;
+		case G_MDSFT_COMBKEY:
+			gDPSetCombineKey( w1 >> G_MDSFT_COMBKEY );
+			break;
+		case G_MDSFT_RGBDITHER:
+			gDPSetColorDither( w1 >> G_MDSFT_RGBDITHER );
+			break;
+		case G_MDSFT_ALPHADITHER:
+			gDPSetAlphaDither( w1 >> G_MDSFT_ALPHADITHER );
 			break;
 		default:
-			DebugMsg( DEBUG_UNKNOWN, "0x%08X: 0x%08X 0x%08X Fast3D_SetOtherMode_L\r\n", RSP.PC[RSP.PCi], RSP.cmd0, RSP.cmd1 );
-			DebugMsg( DEBUG_UNKNOWN, "\tUnknown SetOtherMode_L type 0x%02X. OtherMode_L = 0x%08X\r\n", shift, RDP.otherMode_L );
+			u32 shift = _SHIFTR( w0, 8, 8 );
+			u32 length = _SHIFTR( w0, 0, 8 );
+			u32 mask = ((1 << length) - 1) << shift;
+
+			gDP.otherMode.h &= ~mask;
+			gDP.otherMode.h |= w1 & mask;
+
+			gDP.changed |= CHANGED_CYCLETYPE;
 			break;
 	}
-#endif
-
-	RSP.PC[RSP.PCi] += 8;
 }
 
-void Fast3D_SetOtherMode_H()
+void F3D_SetOtherMode_L( u32 w0, u32 w1 )
 {
-	// Update othermode flags
-	DWORD shift = (RSP.cmd0 >> 8) & 0xFF;
-	DWORD length = RSP.cmd0 & 0xFF;
-	DWORD mask = ((1 << length) - 1) << shift;
-	DWORD old = RDP.otherMode_H;
-
-	RDP.otherMode_H &= ~mask;
-	RDP.otherMode_H |= RSP.cmd1 & mask;
-	RDP.changed.otherMode_H |= old ^ RDP.otherMode_H;
-
-#ifdef DEBUG
-	switch (shift)
+	switch (_SHIFTR( w0, 8, 8 ))
 	{
-		case OTHERMODE_H_CYCLETYPE:
-			DebugMsg( DEBUG_HANDLED, "0x%08X: 0x%08X 0x%08X Fast3D_SetOtherMode_H\r\n", RSP.PC[RSP.PCi], RSP.cmd0, RSP.cmd1 );
-			DebugMsg( DEBUG_HANDLED, "\tCycle type changed. OtherMode_H = 0x%08X\r\n", RDP.otherMode_H );
+		case G_MDSFT_ALPHACOMPARE:
+			gDPSetAlphaCompare( w1 >> G_MDSFT_ALPHACOMPARE );
 			break;
-
-		case OTHERMODE_H_TEXTFILT:
-			//RSP.update |= UPDATE_FILTERING;
+		case G_MDSFT_ZSRCSEL:
+			gDPSetDepthSource( w1 >> G_MDSFT_ZSRCSEL );
 			break;
-
+		case G_MDSFT_RENDERMODE:
+			gDPSetRenderMode( w1 & 0xCCCCFFFF, w1 & 0x3333FFFF );
+			break;
 		default:
-			DebugMsg( DEBUG_UNKNOWN, "0x%08X: 0x%08X 0x%08X Fast3D_SetOtherMode_H\r\n", RSP.PC[RSP.PCi], RSP.cmd0, RSP.cmd1 );
-			DebugMsg( DEBUG_UNKNOWN, "\tUnknown SetOtherMode_H type 0x%02X. OtherMode_H = 0x%08X\r\n", shift, RDP.otherMode_H );
+			u32 shift = _SHIFTR( w0, 8, 8 );
+			u32 length = _SHIFTR( w0, 0, 8 );
+			u32 mask = ((1 << length) - 1) << shift;
+
+			gDP.otherMode.l &= ~mask;
+			gDP.otherMode.l |= w1 & mask;
+
+			gDP.changed |= CHANGED_RENDERMODE | CHANGED_ALPHACOMPARE;
 			break;
 	}
-#endif
-	RSP.PC[RSP.PCi] += 8;
 }
 
-void Fast3D_Texture()
+void F3D_EndDL( u32 w0, u32 w1 )
 {
-	RSP.texture.level = (BYTE)((RSP.cmd0 >> 11) & 0x3);
-	RSP.texture.tile = (BYTE)((RSP.cmd0 >> 8) & 0x3);
-	RSP.texture.on = (BYTE)(RSP.cmd0 & 0xFF);
-	RSP.texture.scaleS = ((RSP.cmd1 >> 16) & 0xFFFF) * 1.5259022e-005;
-	RSP.texture.scaleT = (RSP.cmd1 & 0xFFFF) * 1.5259022e-005;
-
-	RSP.textureTile[0] = &RDP.tiles[RSP.texture.tile];
-	RSP.textureTile[1] = &RDP.tiles[RSP.texture.tile+1];
-	
-#ifdef DEBUG
-	DebugMsg( DEBUG_HANDLED, "0x%08X: 0x%08X 0x%08X Fast3D_Texture\r\n", RSP.PC[RSP.PCi], RSP.cmd0, RSP.cmd1 );
-	DebugMsg( DEBUG_HANDLED, "\tLevel = %u, Tile = %u, On = %u, ScaleS = %f, ScaleT = %f\r\n", RSP.texture.level, RSP.texture.tile, RSP.texture.on, RSP.texture.scaleS, RSP.texture.scaleT );
-#endif
-
-	RSP.PC[RSP.PCi] += 8;
+	gSPEndDisplayList();
 }
 
-void Fast3D_MoveWord()
+void F3D_SetGeometryMode( u32 w0, u32 w1 )
 {
-	WORD offset = (WORD)((RSP.cmd0 >> 8) & 0xFFFF);
-	BYTE index = (BYTE)(RSP.cmd0 & 0xFF);
-	DWORD data = RSP.cmd1;
+	gSPSetGeometryMode( w1 );
+}
 
-	switch (index)
+void F3D_ClearGeometryMode( u32 w0, u32 w1 )
+{
+	gSPClearGeometryMode( w1 );
+}
+
+void F3D_Line3D( u32 w0, u32 w1 )
+{
+	// Hmmm...
+}
+
+void F3D_Quad( u32 w0, u32 w1 )
+{
+	gSP1Quadrangle( _SHIFTR( w1, 24, 8 ) / 10, _SHIFTR( w1, 16, 8 ) / 10, _SHIFTR( w1, 8, 8 ) / 10, _SHIFTR( w1, 0, 8 ) / 10 );
+}
+
+void F3D_RDPHalf_1( u32 w0, u32 w1 )
+{
+/*	if (_SHIFTR( w1, 24, 8 ) == 0xCE)
 	{
-		case FAST3D_MOVEWORD_SEGMENT:
-			RSP.segment[offset >> 2] = data & 0x00FFFFFF;
-
-#ifdef DEBUG
-			DebugMsg( DEBUG_HANDLED, "0x%08X: 0x%08X 0x%08X Fast3D_MoveWord\r\n", RSP.PC[RSP.PCi], RSP.cmd0, RSP.cmd1 );
-			DebugMsg( DEBUG_HANDLED, "\tMOVEWORD_SEGMENT: Setting segment %i to 0x%08X\r\n", offset >> 2, data & 0x00FFFFFF );
-#endif
-			break;
-
-		case FAST3D_MOVEWORD_FOG:
-			RSP.fogMultiplier = (float)(SHORT)(data >> 16);
-			RSP.fogOffset = (float)(SHORT)(data & 0xFFFF);
-			break;
-
-		case FAST3D_MOVEWORD_NUMLIGHT:
-			RSP.numLights = (BYTE)(((RSP.cmd1 & 0xFFFF) >> 5) - 1) & 0x7;
-
-#ifdef DEBUG
-			DebugMsg( DEBUG_HANDLED, "0x%08X: 0x%08X 0x%08X Fast3D_MoveWord\r\n", RSP.PC[RSP.PCi], RSP.cmd0, RSP.cmd1 );
-			DebugMsg( DEBUG_HANDLED, "\tMOVEWORD_NUMLIGHT: Setting number of lights to 0x%08X\r\n", RSP.numLights );
-#endif
-			break;
-
-		case FAST3D_MOVEWORD_PERSPNORM:
-			RSP.perspNorm = (float)(data & 0xFFFF) / 65535.0f;
-#ifdef DEBUG
-			DebugMsg( DEBUG_HANDLED, "0x%08X: 0x%08X 0x%08X Fast3D_MoveWord\r\n", RSP.PC[RSP.PCi], RSP.cmd0, RSP.cmd1 );
-			DebugMsg( DEBUG_HANDLED, "\tMOVEWORD_PERSPNORM: PerpNorm = %f\r\n", RSP.perspNorm );
-#endif
-			break;
-
-		default:
-#ifdef DEBUG
-			DebugMsg( DEBUG_UNKNOWN, "0x%08X: 0x%08X 0x%08X Fast3D_MoveWord\r\n", RSP.PC[RSP.PCi], RSP.cmd0, RSP.cmd1 );
-			DebugMsg( DEBUG_UNKNOWN, "\tUnknown move type %02X\r\n", index );
-#endif
-			break;
-	}
-	RSP.PC[RSP.PCi] += 8;
-}
-
-void Fast3D_PopMatrix()
-{
-	if (RSP.modelViewi > 0)
-		RSP.modelViewi--;
-
-#ifdef DEBUG
-	DebugMsg( DEBUG_HANDLED, "0x%08X: 0x%08X 0x%08X Fast3D_PopMatrix\r\n", RSP.PC[RSP.PCi], RSP.cmd0, RSP.cmd1 );
-	DebugMsg( DEBUG_HANDLED, "\tPopping world matrix\r\n" );
-#endif
-
-	RSP.PC[RSP.PCi] += 8;
-}
-
-void Fast3D_CullDL()
-{
-#ifdef DEBUG
-		DebugMsg( DEBUG_UNHANDLED, "0x%08X: 0x%08X 0x%08X Fast3D_CullDL\r\n", RSP.PC[RSP.PCi], RSP.cmd0, RSP.cmd1 );
-		DebugMsg( DEBUG_UNHANDLED, "\tUnhandled\r\n" );
-#endif
-	RSP.PC[RSP.PCi] += 8;
-}
-
-void Fast3D_Tri1()
-{
-	RSPTriangle		*srcTriangle;
-	BYTE	tri[3];
-
-	RSP.numTriangles = 0;
-	do
-	{
-		srcTriangle = (RSPTriangle*)&RSP.cmd1;
-
-		if ((srcTriangle->v0 % 10) && !RSP.forceUCode)
-		{
-			RSP_SetUCode( UCODE_F3DEX );
-			return;
-		}
-		if ((srcTriangle->v1 % 10) && !RSP.forceUCode)
-		{
-			RSP_SetUCode( UCODE_F3DEX );
-			return;
-		}
-		if ((srcTriangle->v2 % 10) && !RSP.forceUCode)
-		{
-			RSP_SetUCode( UCODE_F3DEX );
-			return;
-		}
-
-/*		RSP.triangleFlags[RSP.numTriangles] = srcTriangle->flag;
-		RSP.triangles[RSP.numTriangles].v0 = srcTriangle->v0 / 10;
-		RSP.triangles[RSP.numTriangles].v1 = srcTriangle->v1 / 10;
-		RSP.triangles[RSP.numTriangles].v2 = srcTriangle->v2 / 10;*/
-		tri[0] = srcTriangle->v0 / 10;
-		tri[1] = srcTriangle->v1 / 10;
-		tri[2] = srcTriangle->v2 / 10;
-		OGL_AddTriangle( tri );
-		
-#ifdef DEBUG
-		DebugMsg( DEBUG_HANDLED, "0x%08X: 0x%08X 0x%08X Fast3D_Tri1\r\n", RSP.PC[RSP.PCi], RSP.cmd0, RSP.cmd1 );
-		DebugMsg( DEBUG_HANDLED, "\tAdding triangle: %u, %u, %u with flags of 0x%04X to triangle buffer\r\n",
-			RSP.triangles[RSP.numTriangles].v0, RSP.triangles[RSP.numTriangles].v1, RSP.triangles[RSP.numTriangles].v2, RSP.triangleFlags[RSP.numTriangles] );
-
-		if (RSP.numTriangles == 32)
-		{
-			DebugMsg( DEBUG_ERROR, "0x%08X: 0x%08X 0x%08X Fast3D_Tri1\r\n", RSP.PC[RSP.PCi], RSP.cmd0, RSP.cmd1 );
-			DebugMsg( DEBUG_ERROR, "\tTriangle buffer filled!\r\n" );
-		}
-#endif
-
-		RSP.numTriangles++;
-
+		u32 w2 = *(u32*)&RDRAM[RSP.PC[RSP.PCi] + 4];
 		RSP.PC[RSP.PCi] += 8;
 
-		RSP.cmd0 = *(DWORD*)&RDRAM[RSP.PC[RSP.PCi]];
-		RSP.cmd1 = *(DWORD*)&RDRAM[RSP.PC[RSP.PCi] + 4];
-	}
-	while (((RSP.cmd0 >> 24) == 0xBF) && (RSP.numTriangles < 32));
-
-#ifdef DEBUG
-	DebugMsg( DEBUG_HANDLED, "\tSending %u triangles to OpenGL for drawing\r\n", RSP.numTriangles );
-#endif
-	OGL_DrawTriangles();
-
-	GFXOp[RSP.cmd0 >> 24]();
+		gDPTextureRectangle( gDP.scissor.ulx,									// ulx
+							_FIXED2FLOAT( _SHIFTR( w2,  0, 16 ), 2 ),			// uly
+							gDP.scissor.lrx,			// lrx
+							_FIXED2FLOAT( _SHIFTR( w2,  16, 16 ), 2 ),			// lry
+							0,													// tile
+							0,		// s
+							0,		// t
+							1,		// dsdx
+							1 );		// dsdy
+	}*/
+	gDP.half_1 = w1;
 }
 
-void Fast3D_Init()
+void F3D_RDPHalf_2( u32 w0, u32 w1 )
+{
+	gDP.half_2 = w1;
+}
+
+void F3D_RDPHalf_Cont( u32 w0, u32 w1 )
+{
+}
+
+void F3D_Tri4( u32 w0, u32 w1 )
+{
+	gSP4Triangles( _SHIFTR( w0,  0, 4 ), _SHIFTR( w1,  0, 4 ), _SHIFTR( w1,  4, 4 ),
+		           _SHIFTR( w0,  4, 4 ), _SHIFTR( w1,  8, 4 ), _SHIFTR( w1, 12, 4 ),
+				   _SHIFTR( w0,  8, 4 ), _SHIFTR( w1, 16, 4 ), _SHIFTR( w1, 20, 4 ),
+				   _SHIFTR( w0, 12, 4 ), _SHIFTR( w1, 24, 4 ), _SHIFTR( w1, 28, 4 ) );
+}
+
+void F3D_Init()
 {
 	// Set GeometryMode flags
-	RSP_GEOMETRYMODE_ZBUFFER			= FAST3D_GEOMETRYMODE_ZBUFFER;
-	RSP_GEOMETRYMODE_TEXTURE_ENABLE		= FAST3D_GEOMETRYMODE_TEXTURE_ENABLE;
-	RSP_GEOMETRYMODE_SHADE				= FAST3D_GEOMETRYMODE_SHADE;
-	RSP_GEOMETRYMODE_SHADING_SMOOTH		= FAST3D_GEOMETRYMODE_SHADING_SMOOTH;
-	RSP_GEOMETRYMODE_CULL_FRONT			= FAST3D_GEOMETRYMODE_CULL_FRONT;
-	RSP_GEOMETRYMODE_CULL_BACK			= FAST3D_GEOMETRYMODE_CULL_BACK;
-	RSP_GEOMETRYMODE_CULL_BOTH			= FAST3D_GEOMETRYMODE_CULL_BOTH;
-	RSP_GEOMETRYMODE_FOG				= FAST3D_GEOMETRYMODE_FOG;
-	RSP_GEOMETRYMODE_LIGHTING			= FAST3D_GEOMETRYMODE_LIGHTING;
-	RSP_GEOMETRYMODE_TEXTURE_GEN		= FAST3D_GEOMETRYMODE_TEXTURE_GEN;
-	RSP_GEOMETRYMODE_TEXTURE_GEN_LINEAR = FAST3D_GEOMETRYMODE_TEXTURE_GEN_LINEAR;
-	RSP_GEOMETRYMODE_LOD				= FAST3D_GEOMETRYMODE_TEXTURE_GEN_LINEAR;
+	GBI_InitFlags( F3D );
 
-	GFXOp[0x00] = Fast3D_SPNoOp;
-	GFXOp[0x01] = Fast3D_Mtx;
-	GFXOp[0x02] = Fast3D_Reserved0;
-	GFXOp[0x03] = Fast3D_MoveMem;
-	GFXOp[0x04] = Fast3D_Vtx;
-	GFXOp[0x05] = Fast3D_Reserved1;
-	GFXOp[0x06] = Fast3D_DL;
-	GFXOp[0x07] = Fast3D_Reserved2;
-	GFXOp[0x08] = Fast3D_Reserved3;
-	GFXOp[0x09] = Fast3D_Sprite2D_Base;
+	GBI.PCStackSize = 10;
 
-	GFXOp[0xB3] = Fast3D_RDPHalf_2;
-	GFXOp[0xB4] = Fast3D_RDPHalf_1;
-	GFXOp[0xB5] = Fast3D_Line3D;
-	GFXOp[0xB6] = Fast3D_ClearGeometryMode;
-	GFXOp[0xB7] = Fast3D_SetGeometryMode;
-	GFXOp[0xB8] = Fast3D_EndDL;
-	GFXOp[0xB9] = Fast3D_SetOtherMode_L;
-	GFXOp[0xBA] = Fast3D_SetOtherMode_H;
-	GFXOp[0xBB] = Fast3D_Texture;
-	GFXOp[0xBC] = Fast3D_MoveWord;
-	GFXOp[0xBD] = Fast3D_PopMatrix;
-	GFXOp[0xBE] = Fast3D_CullDL;
-	GFXOp[0xBF] = Fast3D_Tri1;
+	//          GBI Command             Command Value			Command Function
+	GBI_SetGBI( G_SPNOOP,				F3D_SPNOOP,				F3D_SPNoOp );
+	GBI_SetGBI( G_MTX,					F3D_MTX,				F3D_Mtx );
+	GBI_SetGBI( G_RESERVED0,			F3D_RESERVED0,			F3D_Reserved0 );
+	GBI_SetGBI( G_MOVEMEM,				F3D_MOVEMEM,			F3D_MoveMem );
+	GBI_SetGBI( G_VTX,					F3D_VTX,				F3D_Vtx );
+	GBI_SetGBI( G_RESERVED1,			F3D_RESERVED1,			F3D_Reserved1 );
+	GBI_SetGBI( G_DL,					F3D_DL,					F3D_DList );
+	GBI_SetGBI( G_RESERVED2,			F3D_RESERVED2,			F3D_Reserved2 );
+	GBI_SetGBI( G_RESERVED3,			F3D_RESERVED3,			F3D_Reserved3 );
+	GBI_SetGBI( G_SPRITE2D_BASE,		F3D_SPRITE2D_BASE,		F3D_Sprite2D_Base );
+
+	GBI_SetGBI( G_TRI1,					F3D_TRI1,				F3D_Tri1 );
+	GBI_SetGBI( G_CULLDL,				F3D_CULLDL,				F3D_CullDL );
+	GBI_SetGBI( G_POPMTX,				F3D_POPMTX,				F3D_PopMtx );
+	GBI_SetGBI( G_MOVEWORD,				F3D_MOVEWORD,			F3D_MoveWord );
+	GBI_SetGBI( G_TEXTURE,				F3D_TEXTURE,			F3D_Texture );
+	GBI_SetGBI( G_SETOTHERMODE_H,		F3D_SETOTHERMODE_H,		F3D_SetOtherMode_H );
+	GBI_SetGBI( G_SETOTHERMODE_L,		F3D_SETOTHERMODE_L,		F3D_SetOtherMode_L );
+	GBI_SetGBI( G_ENDDL,				F3D_ENDDL,				F3D_EndDL );
+	GBI_SetGBI( G_SETGEOMETRYMODE,		F3D_SETGEOMETRYMODE,	F3D_SetGeometryMode );
+	GBI_SetGBI( G_CLEARGEOMETRYMODE,	F3D_CLEARGEOMETRYMODE,	F3D_ClearGeometryMode );
+	GBI_SetGBI( G_QUAD,					F3D_QUAD,				F3D_Quad );
+	GBI_SetGBI( G_RDPHALF_1,			F3D_RDPHALF_1,			F3D_RDPHalf_1 );
+	GBI_SetGBI( G_RDPHALF_2,			F3D_RDPHALF_2,			F3D_RDPHalf_2 );
+	GBI_SetGBI( G_RDPHALF_CONT,			F3D_RDPHALF_CONT,		F3D_RDPHalf_Cont );
+	GBI_SetGBI( G_TRI4,					F3D_TRI4,				F3D_Tri4 );
 }
