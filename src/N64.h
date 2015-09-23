@@ -1,0 +1,53 @@
+#ifndef N64_H
+
+#define N64_H
+
+#include <windows.h>
+
+#define MI_INTR_DP		0x20		// Bit 5: DP intr 
+
+struct N64Matrix
+{
+	SHORT integer[4][4];
+	WORD fraction[4][4];
+};
+
+struct N64Regs
+{
+	DWORD *MI_INTR;
+
+	DWORD *DPC_START;
+	DWORD *DPC_END;
+	DWORD *DPC_CURRENT;
+	DWORD *DPC_STATUS;
+	DWORD *DPC_CLOCK;
+	DWORD *DPC_BUFBUSY;
+	DWORD *DPC_PIPEBUSY;
+	DWORD *DPC_TMEM;
+
+	DWORD *VI_STATUS;
+	DWORD *VI_ORIGIN;
+	DWORD *VI_WIDTH;
+	DWORD *VI_INTR;
+	DWORD *VI_V_CURRENT_LINE;
+	DWORD *VI_TIMING;
+	DWORD *VI_V_SYNC;
+	DWORD *VI_H_SYNC;
+	DWORD *VI_LEAP;
+	DWORD *VI_H_START;
+	DWORD *VI_V_START;
+	DWORD *VI_V_BURST;
+	DWORD *VI_X_SCALE;
+	DWORD *VI_Y_SCALE;
+};
+
+extern N64Regs REG;
+extern BYTE *DMEM;
+extern BYTE *IMEM;
+extern BYTE *RDRAM;
+
+typedef void (*GFXFunc)();
+
+extern GFXFunc GFXOp[256];
+
+#endif
