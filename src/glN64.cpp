@@ -1,4 +1,5 @@
 #include <windows.h>
+#include <commctrl.h>
 #include <gl/gl.h>
 #include <gl/glu.h>
 #include <process.h>
@@ -16,10 +17,11 @@
 
 HWND		hWnd;
 HWND		hStatusBar;
-HWND		hFullscreen;
+//HWND		hFullscreen;
+HWND		hToolBar;
 HINSTANCE	hInstance;
 
-char		pluginName[] = "glN64 v0.4";
+char		pluginName[] = "glN64 v0.4.1";
 char		*screenDirectory;
 
 void (*CheckInterrupts)( void );
@@ -42,7 +44,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD dwReason, LPVOID lpvReserved)
 /*		OGL.hPbufferRC = NULL;
 		OGL.hPbufferDC = NULL;
 		OGL.hPbuffer = NULL;*/
-		hFullscreen = NULL;
+//		hFullscreen = NULL;
 	}
 	return TRUE;
 }
@@ -162,10 +164,23 @@ EXPORT void CALL GetDllInfo ( PLUGIN_INFO * PluginInfo )
 	PluginInfo->MemoryBswaped = TRUE;
 }
 
+BOOL CALLBACK FindToolBarProc( HWND hWnd, LPARAM lParam )
+{
+	if (GetWindowLong( hWnd, GWL_STYLE ) & RBS_VARHEIGHT)
+	{
+		hToolBar = hWnd;
+		return FALSE;
+	}
+	return TRUE;
+}
+
 EXPORT BOOL CALL InitiateGFX (GFX_INFO Gfx_Info)
 {
 	hWnd = Gfx_Info.hWnd;
 	hStatusBar = Gfx_Info.hStatusBar;
+	hToolBar = NULL;
+
+	EnumChildWindows( hWnd, FindToolBarProc,0 );
 
 	DMEM = Gfx_Info.DMEM;
 	IMEM = Gfx_Info.IMEM;

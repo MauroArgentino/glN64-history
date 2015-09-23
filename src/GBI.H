@@ -2,6 +2,7 @@
 #define GBI_H
 #include "Types.h"
 
+// Microcode Types
 #define F3D			0
 #define F3DEX		1
 #define F3DEX2		2
@@ -15,7 +16,7 @@
 #define F3DWRUS	    10
 #define NONE		11
 
-static const char *UCodeText[] =
+static const char *MicrocodeTypes[] =
 {
 	"Fast3D", 
 	"F3DEX", 
@@ -31,7 +32,7 @@ static const char *UCodeText[] =
 	"None"
 };
 
-static const int numUCodes = 11;
+static const int numMicrocodeTypes = 11;
 
 
 // Fixed point conversion factors
@@ -699,23 +700,49 @@ struct Light
 	s8 pad2, z, y, x;
 };
 
+// GBI commands
+typedef void (*GBIFunc)( u32 w0, u32 w1 );
+//extern GBIFunc GBICmd[256];
+
+struct SpecialMicrocodeInfo
+{
+	u32 type;
+	u32 NoN;
+	u32 crc;
+	char *text;
+};
+
+struct MicrocodeInfo
+{
+	u32 address, dataAddress;
+	u16 dataSize;
+	u32 type;
+	u32 NoN;
+	u32 crc;
+	u32 *text;
+
+	MicrocodeInfo *higher, *lower;
+};
+
 struct GBIInfo
 {
-	u32 PCStackSize;
+	GBIFunc cmd[256];
+
+	u32 PCStackSize, numMicrocodes;
+	MicrocodeInfo *current, *top, *bottom;
 };
 
 extern GBIInfo GBI;
 
-// GBI commands
-typedef void (*GBIFunc)( u32 w0, u32 w1 );
-extern GBIFunc GBICmd[256];
-
-GBI_InituCode( u32 uCode );
+void GBI_MakeCurrent( MicrocodeInfo *current );
+MicrocodeInfo *GBI_DetectMicrocode( u32 uc_start, u32 uc_dstart, u16 uc_dsize );
+void GBI_Init();
+void GBI_Destroy();
 
 // Allows easier setting of GBI commands
 #define GBI_SetGBI( command, value, function ) \
 	command = value; \
-	GBICmd[command] = function
+	GBI.cmd[command] = function
 
 #define GBI_InitFlags( ucode ) \
 	G_MTX_STACKSIZE		= ucode##_MTX_STACKSIZE; \

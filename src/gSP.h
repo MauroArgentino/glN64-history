@@ -12,15 +12,6 @@
 #define CHANGED_TEXTURE			0x10
 #define CHANGED_FOGPOSITION		0x10
 
-struct UCodeInfo
-{
-	u32 ucode;
-	u32 NoN;
-	u32 crc;
-	u32 dcrc;
-	char *str;
-};
-
 struct SPVertex
 {
 	f32		x, y, z, w;
@@ -95,7 +86,6 @@ struct gSPInfo
 	u32 changed;
 
 	u32 status[4];
-	u32 NoN;
 
 	struct
 	{

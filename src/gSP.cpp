@@ -26,89 +26,6 @@
 		OGL_DrawTriangles()
 
 gSPInfo gSP;
-u32 uc_crc, uc_dcrc;
-char uc_str[256];
-
-UCodeInfo ucodes[] =
-{
-	{ F3D,		FALSE,	0x6932365f, 0xdc8f5284, "RSP SW Version: 2.0D, 04-01-96" },
-	{ F3D,		FALSE,	0x55be9bad, 0xa51e4d15, "RSP SW Version: 2.0D, 04-01-96" },
-	{ F3D,		FALSE,	0x54c558ba, 0xd207eb1f, "RSP SW Version: 2.0D, 04-01-96" },
-	{ F3D,		FALSE,	0x77195a68, 0x332a3f89, "RSP SW Version: 2.0D, 04-01-96" },
-	{ F3D,		FALSE,	0xfe95d043, 0x842611a2, "RSP SW Version: 2.0D, 04-01-96" },
-	{ F3DWRUS,	FALSE,	0xd17906e2, 0xa59debfc, "RSP SW Version: 2.0D, 04-01-96" },
-	{ F3DWRUS,	FALSE,	0x94c4c833, 0xe65cb303, "RSP SW Version: 2.0D, 04-01-96" },
-	{ F3D,		FALSE,	0x302bca09, 0x114fc3e8, "RSP SW Version: 2.0G, 09-30-96" },
-	{ F3D,		FALSE,	0x16c3a775, 0x2a86ce2e, "RSP SW Version: 2.0G, 09-30-96" },
-	{ F3D,		FALSE,	0x3ee81124, 0xb65d694a, "RSP SW Version: 2.0H, 02-12-97" },
-	{ F3D,		FALSE,	0x26eabb5c, 0xe4d5ed9d, "RSP SW Version: 2.0H, 02-12-97" },
-	{ F3D,		FALSE,	0xe6a4c407, 0x6763a048, "RSP SW Version: 2.0H, 02-12-97" },
-	{ F3D,		FALSE,	0xfff0637d, 0xbeecd705, "RSP SW Version: 2.0H, 02-12-97" },
-
-	{ F3DEX,    FALSE,	0xf89248e1, 0x274e2511, "RSP Gfx ucode F3DLX         0.95 Yoshitaka Yasumoto Nintendo." },
-	{ F3DEX,    FALSE,	0x0ace4c3f, 0xe1c94bab, "RSP Gfx ucode F3DEX         0.95 Yoshitaka Yasumoto Nintendo." },
-	{ F3DEX,    FALSE,	0x5e98d711, 0x8b4639ae, "RSP Gfx ucode F3DEX         1.00 Yoshitaka Yasumoto Nintendo." },
-	{ F3DEX,    TRUE,	0x8d92035a, 0x9b0bf201, "RSP Gfx ucode F3DEX.NoN     1.00 Yoshitaka Yasumoto Nintendo." },
-	{ F3DEX,    TRUE,	0x673bf6ca, 0x32147c65, "RSP Gfx ucode F3DLX.NoN     1.20 Yoshitaka Yasumoto Nintendo." },
-	{ F3DEX,    FALSE,	0xe445e1d4, 0xe819f680, "RSP Gfx ucode F3DEX         1.21 Yoshitaka Yasumoto Nintendo." },
-	{ F3DEX,    FALSE,	0x8d014768, 0xe819f680, "RSP Gfx ucode F3DEX         1.21 Yoshitaka Yasumoto Nintendo." },
-	{ F3DEX,    FALSE,	0xd29933c7, 0xdd47b9f7, "RSP Gfx ucode F3DLX         1.21 Yoshitaka Yasumoto Nintendo." },
-	{ F3DEX,    TRUE,	0x2a12ef80, 0x910d99e2, "RSP Gfx ucode F3DLX.NoN     1.21 Yoshitaka Yasumoto Nintendo." },
-	{ F3DEX,    FALSE,	0xece2aa50, 0x74aff442, "RSP Gfx ucode F3DLX.Rej     1.21 Yoshitaka Yasumoto Nintendo." },
-	{ F3DEX,    TRUE,	0xcfcb7202, 0x079b6d2a, "RSP Gfx ucode F3DEX.NoN     1.22 Yoshitaka Yasumoto Nintendo." },
-	{ F3DEX,    FALSE,	0xe0fddb19, 0xc6a2c4b6, "RSP Gfx ucode F3DEX         1.23 Yoshitaka Yasumoto Nintendo." },
-	{ F3DEX,    TRUE,	0xed9a1db9, 0x7c7ecb87, "RSP Gfx ucode F3DEX.NoN     1.23 Yoshitaka Yasumoto Nintendo." },
-	{ F3DEX,    FALSE,	0x232e44b4, 0xf1952967, "RSP Gfx ucode F3DLX         1.23 Yoshitaka Yasumoto Nintendo." },
-	{ F3DEX,    FALSE,	0x1a61a6df, 0xdfe01b8c, "RSP Gfx ucode F3DLX.Rej     1.23 Yoshitaka Yasumoto Nintendo." },
-	{ F3DEX,    TRUE,	0x83a1337d, 0x9cb14202, "RSP Gfx ucode F3DLX.NoN     1.23 Yoshitaka Yasumoto Nintendo." },
-
-	{ L3DEX,    FALSE,	0x3dd171e2, 0xc0731a8a, "RSP Gfx ucode L3DEX         1.00 Yoshitaka Yasumoto Nintendo." },
-	{ L3DEX,    FALSE,	0x259d8dbc, 0xaedc0e47, "RSP Gfx ucode L3DEX         1.23 Yoshitaka Yasumoto Nintendo." },
-
-	{ F3DEX2,	FALSE,	0x7cbd21fe, 0xc78ab0ec, "RSP Gfx ucode F3DEX       fifo 2.03  Yoshitaka Yasumoto 1998 Nintendo." },
-	{ F3DEX2,	FALSE,	0x16e3c5ce, 0xcad14790, "RSP Gfx ucode F3DLX.Rej   fifo 2.03  Yoshitaka Yasumoto 1998 Nintendo." },
-	{ F3DEX2,	FALSE,	0x8a3de964, 0xefd8e772, "RSP Gfx ucode F3DFLX.Rej  fifo 2.03F Yoshitaka Yasumoto 1998 Nintendo." },
-	{ F3DEX2,	FALSE,	0x399aa710, 0xa2af4e44, "RSP Gfx ucode F3DEX       fifo 2.04  Yoshitaka Yasumoto 1998 Nintendo." },
-	{ F3DEX2,	TRUE,	0x2e1923db, 0x8493432a, "RSP Gfx ucode F3DEX.NoN   fifo 2.04  Yoshitaka Yasumoto 1998 Nintendo." },
-	{ F3DEX2,	FALSE,	0xa6265ff5, 0xc3ea9eab, "RSP Gfx ucode F3DEX       fifo 2.04H Yoshitaka Yasumoto 1998 Nintendo." },
-	{ F3DEX2,	FALSE,	0xbbd737c5, 0xdd7fa3e6, "RSP Gfx ucode F3DEX       fifo 2.05  Yoshitaka Yasumoto 1998 Nintendo." },
-	{ F3DEX2,	TRUE,	0x94e474b5, 0xdd8bf290, "RSP Gfx ucode F3DEX.NoN   fifo 2.05  Yoshitaka Yasumoto 1998 Nintendo." },
-	{ F3DEX2,	TRUE,	0xe44df568, 0xe5f7b444, "RSP Gfx ucode F3DEX.NoN   fifo 2.05  Yoshitaka Yasumoto 1998 Nintendo." },
-	{ F3DEX2,	FALSE,	0x41c915cb, 0x268097a2, "RSP Gfx ucode F3DEX       fifo 2.06  Yoshitaka Yasumoto 1998 Nintendo." },
-	{ F3DEX2,	TRUE,	0xe9fecf63, 0xe9487018, "RSP Gfx ucode F3DEX.NoN   fifo 2.06  Yoshitaka Yasumoto 1998 Nintendo." },
-	{ F3DEX2,	TRUE,	0xe8c9d2f4, 0x2ced3bc0, "RSP Gfx ucode F3DEX.NoN   xbus 2.06  Yoshitaka Yasumoto 1998 Nintendo." },
-	{ F3DEX2,	FALSE,	0x001f8393, 0x00b62f04, "RSP Gfx ucode F3DLX.Rej   fifo 2.06  Yoshitaka Yasumoto 1998 Nintendo." },
-	{ F3DEX2,	TRUE,	0x70a3227c, 0xf700683f, "RSP Gfx ucode F3DZEX.NoN  fifo 2.06H Yoshitaka Yasumoto 1998 Nintendo." },
-	{ F3DEX2,	FALSE,	0x5f113aa5, 0x211b7450, "RSP Gfx ucode F3DEX       fifo 2.07  Yoshitaka Yasumoto 1998 Nintendo." },
-	{ F3DEX2,	TRUE,	0xbc338250, 0xf487871f, "RSP Gfx ucode F3DEX.NoN   fifo 2.07  Yoshitaka Yasumoto 1998 Nintendo." },
-	{ F3DEX2,	FALSE,	0xa12d9808, 0xd9e6bcb0, "RSP Gfx ucode F3DEX       xbus 2.07  Yoshitaka Yasumoto 1998 Nintendo." },
-	{ F3DEX2,	FALSE,	0xef15ca61, 0xdbdb8f76, "RSP Gfx ucode F3DLX.Rej   xbus 2.07  Yoshitaka Yasumoto 1998 Nintendo." },
-	{ F3DEX2,	FALSE,	0xfc574e1c, 0x19e38cb8, "RSP Gfx ucode F3DEX       fifo 2.08  Yoshitaka Yasumoto 1999 Nintendo." },
-	{ F3DEX2,	FALSE,	0xdbff458a, 0x5427a46f, "RSP Gfx ucode F3DEX       fifo 2.08  Yoshitaka Yasumoto 1999 Nintendo." },
-	{ F3DEX2,	FALSE,	0xa01bf55f, 0x1b540171, "RSP Gfx ucode F3DEX       xbus 2.08  Yoshitaka Yasumoto 1999 Nintendo." },
-	{ F3DEX2,	TRUE,	0x465d3466, 0x1e8ca6bd, "RSP Gfx ucode F3DEX.NoN   fifo 2.08  Yoshitaka Yasumoto 1999 Nintendo." },
-	{ F3DEX2,	TRUE,	0x69d1b93f, 0x6834cb73, "RSP Gfx ucode F3DEX.NoN   xbus 2.08  Yoshitaka Yasumoto 1999 Nintendo." },
-	{ F3DEX2,	FALSE,	0x4760bb28, 0x0fcc1dd8, "RSP Gfx ucode F3DEX.Rej   fifo 2.08  Yoshitaka Yasumoto 1999 Nintendo." },
-	{ F3DEX2,	FALSE,	0x98630f58, 0xf26b9cc8, "RSP Gfx ucode F3DLX.Rej   fifo 2.08  Yoshitaka Yasumoto 1999 Nintendo." },
-	{ F3DEX2,	FALSE,	0x847dbabb, 0xe242934a, "RSP Gfx ucode F3DLX.Rej   xbus 2.08  Yoshitaka Yasumoto 1999 Nintendo." },
-	{ F3DEX2,	TRUE,	0xdf528a85, 0x29b5a8f4, "RSP Gfx ucode F3DZEX.NoN  fifo 2.08I Yoshitaka Yasumoto 1999 Nintendo." },
-	{ F3DEX2,	TRUE,	0xd39a0d4f, 0x8dfb5495, "RSP Gfx ucode F3DZEX.NoN  fifo 2.08J Yoshitaka Yasumoto/Kawasedo 1999." },
-
-	{ L3DEX2,	FALSE,	0xc41ec850, 0x0c7afe4d, "RSP Gfx ucode L3DEX       fifo 2.08  Yoshitaka Yasumoto 1999 Nintendo." },
-
-	{ S2DEX,	FALSE,	0x9df31081, 0xf01f146b, "RSP Gfx ucode S2DEX  1.06 Yoshitaka Yasumoto Nintendo." },
-
-	{ S2DEX2,	FALSE,	0xdc0b0b1b, 0x08c46734, "RSP Gfx ucode S2DEX       fifo 2.04  Yoshitaka Yasumoto 1998 Nintendo." },
-	{ S2DEX2,	FALSE,	0xb5f4819d, 0x2414f41f, "RSP Gfx ucode S2DEX       xbus 2.06  Yoshitaka Yasumoto 1998 Nintendo." },
-	{ S2DEX2,	FALSE,	0xe45b538c, 0x6e29f0bb, "RSP Gfx ucode S2DEX       fifo 2.07  Yoshitaka Yasumoto 1998 Nintendo." },
-	{ S2DEX2,	FALSE,	0x02c399dd, 0x79c949d2, "RSP Gfx ucode S2DEX       fifo 2.08  Yoshitaka Yasumoto 1999 Nintendo." },
-	{ S2DEX2,	FALSE,	0x7d569ba6, 0x22f561df, "RSP Gfx[Safe] S2DEX       fifo 2.05  Yoshitaka Yasumoto 1998 Nintendo." },
-
-	{ F3DDKR,	FALSE,	0x8d91244f, 0x9f3a7908, "Diddy Kong Racing" },
-	{ F3DDKR,	FALSE,	0x6e6fc893, 0x9f3a7908, "Diddy Kong Racing" },
-	{ F3DDKR,	FALSE,	0xbde9d1fb, 0x141f2944, "Jet Force Gemini" },
-	{ F3DPD,	FALSE,	0x1c4f7869, 0xd510acf8, "Perfect Dark" }
-};
 
 f32 identityMatrix[4][4] =
 {
@@ -118,39 +35,6 @@ f32 identityMatrix[4][4] =
 	{ 0.0f, 0.0f, 0.0f, 1.0f }
 };
 
-
-INT_PTR CALLBACK UCodeDlgProc( HWND hWndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam )
-{
-	switch (uMsg) 
-	{ 
-		case WM_INITDIALOG:
-			for (int i = 0; i < numUCodes; i++)
-			{
-				SendDlgItemMessage( hWndDlg, IDC_UCODE, CB_ADDSTRING, 0, (LPARAM)UCodeText[i] );
-			}
-			SendDlgItemMessage( hWndDlg, IDC_UCODE, CB_SETCURSEL, 0, 0 );
-
-			char text[1024];
-			sprintf( text, "Microcode CRC:\t\t0x%08x\r\nMicrocode Data CRC:\t0x%08x\r\nMicrocode Text:\t\t%s", uc_crc, uc_dcrc, uc_str );
-			SendDlgItemMessage( hWndDlg, IDC_TEXTBOX, WM_SETTEXT, NULL, (LPARAM)text );
-			return TRUE;
-
-		case WM_COMMAND: 
-			switch (LOWORD(wParam)) 
-			{ 
-				case IDOK: 
-					EndDialog( hWndDlg, SendDlgItemMessage( hWndDlg, IDC_UCODE, CB_GETCURSEL, 0, 0 ) );
-					return TRUE;
-	
-				case IDCANCEL: 
-					EndDialog( hWndDlg, NONE );
-					return TRUE;
-			}
-			break;
-	}
-
-	return FALSE;
-}
 
 void gSPLoadUcodeEx( u32 uc_start, u32 uc_dstart, u16 uc_dsize )
 {
@@ -168,102 +52,12 @@ void gSPLoadUcodeEx( u32 uc_start, u32 uc_dstart, u16 uc_dsize )
 			return;
 	}
 
-	uc_crc = CRC_Calculate( 0xFFFFFFFF, &RDRAM[uc_start & 0x1FFFFFFF], 4096 );
-	uc_dcrc = CRC_Calculate( 0xFFFFFFFF, &RDRAM[uc_dstart & 0x1FFFFFFF], uc_dsize );
+	MicrocodeInfo *ucode = GBI_DetectMicrocode( uc_start, uc_dstart, uc_dsize );
 
-	for (u32 i = 0; i < sizeof( ucodes ) / sizeof( UCodeInfo ); i++)
-	{
-		if (uc_crc == ucodes[i].crc)// && (uc_dcrc == ucodes[i].dcrc))
-		{
-			RSP.uc_start = uc_start;
-			RSP.uc_dstart = uc_dstart;
-			gSP.NoN = ucodes[i].NoN;
-
-			GBI_InituCode( ucodes[i].ucode );
-#ifdef DEBUG
-			DebugMsg( DEBUG_HIGH | DEBUG_HANDLED, "gSPLoadUcodeEx( 0x%08X, 0x%08X, %i );\n", uc_start, uc_dstart, uc_dsize );
-#endif
-			return;
-		}
-	}
-
-	char uc_data[2048];
-	UnswapCopy( &RDRAM[uc_dstart & 0x1FFFFFFF], uc_data, 2048 );
-
-	strcpy( uc_str, "Not Found" );
-	
-	for (u32 i = 0; i < 2048; i++)
-	{
-		if ((uc_data[i] == 'R') && (uc_data[i+1] == 'S') && (uc_data[i+2] == 'P'))
-		{
-			u32 j = 0;
-			while (uc_data[i+j] > 0x0A)
-			{
-				uc_str[j] = uc_data[i+j];
-				j++;
-			}
-            		
-			uc_str[j] = 0x00;
-			break;
-		}
-	}
-
-/*	char *uc_data = (char*)malloc( RDRAMSize );
-	UnswapCopy( RDRAM, uc_data, RDRAMSize );
-
-	char uc_str[256];
-	strcpy( uc_str, "No microcode text found" );
-	
-	for (u32 i = 0; i < RDRAMSize; i++)
-	{
-		if ((uc_data[i] == 'R') && (uc_data[i+1] == 'S') && (uc_data[i+2] == 'P'))
-		{
-			u32 j = 0;
-			while (uc_data[i+j] > 0x0A)
-			{
-				uc_str[j] = uc_data[i+j];
-				j++;
-			}
-            		
-			uc_str[j] = 0x00;
-			//break;
-		}
-	}*/
-
-	for (u32 i = 0; i < sizeof( ucodes ) / sizeof( UCodeInfo ); i++)
-	{
-		if (strcmp( uc_str, ucodes[i].str ) == 0)
-		{
-			RSP.uc_start = uc_start;
-			RSP.uc_dstart = uc_dstart;
-			gSP.NoN = ucodes[i].NoN;
-
-			GBI_InituCode( ucodes[i].ucode );
-#ifdef DEBUG
-			DebugMsg( DEBUG_HIGH | DEBUG_HANDLED, "gSPLoadUcodeEx( 0x%08X, 0x%08X, %i );\n", uc_start, uc_dstart, uc_dsize );
-#endif
-			return;
-		}
-	}
-
-	int ret = DialogBox( hInstance, MAKEINTRESOURCE( IDD_UCODEDLG ), hWnd, UCodeDlgProc );
-
-	if (ret == NONE)
-		SetEvent( RSP.threadMsg[RSPMSG_CLOSE] );
+	if (ucode->type != NONE)
+		GBI_MakeCurrent( ucode );
 	else
-	{
-		RSP.uc_start = uc_start;
-		RSP.uc_dstart = uc_dstart;
-		gSP.NoN = FALSE;
-		GBI_InituCode( ret );
-	}
-
-/*	char text[1024];
-	sprintf( text, "Unknown microcode detected, stopping video thread\n\n\tMicrocode CRC:\t\t0x%08X\n\tMicrocode Data CRC:\t0x%08X\n\tMicrocode Text:\t\t%s", uc_crc, uc_dcrc, uc_str );
-	MessageBox( hWnd, text, pluginName, MB_OK | MB_ICONERROR );
-	RSP.halt = TRUE;
-	RSP.thread = NULL;
-	SetEvent( RSP.threadMsg[RSPMSG_CLOSE] );*/
+		SetEvent( RSP.threadMsg[RSPMSG_CLOSE] );
 
 #ifdef DEBUG
 	DebugMsg( DEBUG_HIGH | DEBUG_ERROR, "// Unknown microcode: 0x%08X, 0x%08X, %s\n", uc_crc, uc_dcrc, uc_str );
@@ -858,7 +652,7 @@ void gSPDMADisplayList( u32 dl, u32 n )
 		RSP.PC[RSP.PCi] += 8;
 		RSP.nextCmd = _SHIFTR( *(u32*)&RDRAM[RSP.PC[RSP.PCi]], 24, 8 );
 
-		GBICmd[_SHIFTR( w0, 24, 8 )]( w0, w1 );
+		GBI.cmd[_SHIFTR( w0, 24, 8 )]( w0, w1 );
 	}
 
 	RSP.PC[RSP.PCi] = curDL;
@@ -993,7 +787,7 @@ void gSPTriangle( s32 v0, s32 v1, s32 v2, s32 flag )
 			 return;
 
 		// NoN work-around, clips triangles, and draws the clipped-off parts with clamped z
-		if (gSP.NoN &&
+		if (GBI.current->NoN &&
 			((gSP.vertices[v0].zClip < 0.0f) ||
 			(gSP.vertices[v1].zClip < 0.0f) ||
 			(gSP.vertices[v2].zClip < 0.0f)))

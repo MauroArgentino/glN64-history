@@ -149,7 +149,7 @@ TexEnvCombiner *Compile_texture_env_combine( Combiner *color, Combiner *alpha )
 {
 	TexEnvCombiner *envCombiner = (TexEnvCombiner*)malloc( sizeof( TexEnvCombiner ) );
 
-	int curUnit, usedUnits, combinedUnit;
+	int curUnit, combinedUnit;
 
 	for (int i = 0; i < OGL.maxTextureUnits; i++)
 	{

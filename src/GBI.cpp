@@ -1,3 +1,5 @@
+#include <stdio.h>
+#include "glN64.h"
 #include "GBI.h"
 #include "RDP.h"
 #include "RSP.h"
@@ -13,6 +15,24 @@
 #include "F3DWRUS.h"
 #include "F3DPD.h"
 #include "Types.h"
+#include "Resource.h"
+#include "CRC.h"
+
+u32 uc_crc, uc_dcrc;
+char uc_str[256];
+
+SpecialMicrocodeInfo specialMicrocodes[] =
+{
+	{ F3DWRUS,	FALSE,	0xd17906e2, "RSP SW Version: 2.0D, 04-01-96" },
+	{ F3DWRUS,	FALSE,	0x94c4c833, "RSP SW Version: 2.0D, 04-01-96" },
+
+	{ S2DEX,	FALSE,	0x9df31081, "RSP Gfx ucode S2DEX  1.06 Yoshitaka Yasumoto Nintendo." },
+
+	{ F3DDKR,	FALSE,	0x8d91244f, "Diddy Kong Racing" },
+	{ F3DDKR,	FALSE,	0x6e6fc893, "Diddy Kong Racing" },
+	{ F3DDKR,	FALSE,	0xbde9d1fb, "Jet Force Gemini" },
+	{ F3DPD,	FALSE,	0x1c4f7869, "Perfect Dark" }
+};
 
 u32 G_RDPHALF_1, G_RDPHALF_2, G_RDPHALF_CONT;
 u32 G_SPNOOP;
@@ -62,7 +82,7 @@ u32 G_MWO_aLIGHT_6, G_MWO_bLIGHT_6;
 u32 G_MWO_aLIGHT_7, G_MWO_bLIGHT_7;
 u32 G_MWO_aLIGHT_8, G_MWO_bLIGHT_8;
 
-GBIFunc GBICmd[256];
+//GBIFunc GBICmd[256];
 GBIInfo GBI;
 
 void GBI_Unknown( u32 w0, u32 w1 )
@@ -77,26 +97,244 @@ void GBI_Unknown( u32 w0, u32 w1 )
 #endif
 }
 
-GBI_InituCode( u32 uCode )
+INT_PTR CALLBACK MicrocodeDlgProc( HWND hWndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam )
 {
-	for (int i = 0; i <= 0xFF; i++)
-		GBICmd[i] = GBI_Unknown;
+	switch (uMsg) 
+	{ 
+		case WM_INITDIALOG:
+			for (int i = 0; i < numMicrocodeTypes; i++)
+			{
+				SendDlgItemMessage( hWndDlg, IDC_MICROCODE, CB_ADDSTRING, 0, (LPARAM)MicrocodeTypes[i] );
+			}
+			SendDlgItemMessage( hWndDlg, IDC_MICROCODE, CB_SETCURSEL, 0, 0 );
 
-	RDP_Init();
+			char text[1024];
+			sprintf( text, "Microcode CRC:\t\t0x%08x\r\nMicrocode Data CRC:\t0x%08x\r\nMicrocode Text:\t\t%s", uc_crc, uc_dcrc, uc_str );
+			SendDlgItemMessage( hWndDlg, IDC_TEXTBOX, WM_SETTEXT, NULL, (LPARAM)text );
+			return TRUE;
 
-	switch (uCode)
-	{
-		case F3D:		F3D_Init();		break;
-		case F3DEX:		F3DEX_Init();	break;
-		case F3DEX2:	F3DEX2_Init();	break;
-		case L3D:		L3D_Init();		break;
-		case L3DEX:		L3DEX_Init();	break;
-		case L3DEX2:	L3DEX2_Init();	break;
-		case S2DEX:		S2DEX_Init();	break;
-		case S2DEX2:	S2DEX2_Init();	break;
-		case F3DDKR:	F3DDKR_Init();	break;
-		case F3DWRUS:	F3DWRUS_Init();	break;
-		case F3DPD:		F3DPD_Init();	break;
+		case WM_COMMAND: 
+			switch (LOWORD(wParam)) 
+			{ 
+				case IDOK: 
+					EndDialog( hWndDlg, SendDlgItemMessage( hWndDlg, IDC_MICROCODE, CB_GETCURSEL, 0, 0 ) );
+					return TRUE;
+	
+				case IDCANCEL: 
+					EndDialog( hWndDlg, NONE );
+					return TRUE;
+			}
+			break;
 	}
-	RSP.ucode = uCode;
+
+	return FALSE;
+}
+
+MicrocodeInfo *GBI_AddMicrocode()
+{
+	MicrocodeInfo *newtop = (MicrocodeInfo*)malloc( sizeof( MicrocodeInfo ) );
+
+	newtop->lower = GBI.top;
+	newtop->higher = NULL;
+
+	if (GBI.top)
+		GBI.top->higher = newtop;
+
+	if (!GBI.bottom)
+		GBI.bottom = newtop;
+
+    GBI.top = newtop;
+
+	GBI.numMicrocodes++;
+
+	return newtop;
+}
+
+void GBI_Init()
+{
+	GBI.top = NULL;
+	GBI.bottom = NULL;
+	GBI.current = NULL;
+	GBI.numMicrocodes = 0;
+
+	for (u32 i = 0; i <= 0xFF; i++)
+		GBI.cmd[i] = GBI_Unknown;
+}
+
+void GBI_Destroy()
+{
+	while (GBI.bottom)
+	{
+		MicrocodeInfo *newBottom = GBI.bottom->higher;
+
+		if (GBI.bottom == GBI.top)
+			GBI.top = NULL;
+
+		free( GBI.bottom );
+
+		GBI.bottom = newBottom;
+		
+		if (GBI.bottom)
+			GBI.bottom->lower = NULL;
+
+		GBI.numMicrocodes--;
+	}
+}
+
+MicrocodeInfo *GBI_DetectMicrocode( u32 uc_start, u32 uc_dstart, u16 uc_dsize )
+{
+	MicrocodeInfo *current;
+
+	for (int i = 0; i < GBI.numMicrocodes; i++)
+	{
+		current = GBI.top;
+
+		while (current)
+		{
+			if ((current->address == uc_start) && (current->dataAddress == uc_dstart) && (current->dataSize == uc_dsize))
+				return current;
+
+			current = current->lower;
+		}
+	}
+
+	current = GBI_AddMicrocode();
+
+	current->address = uc_start;
+	current->dataAddress = uc_dstart;
+	current->dataSize = uc_dsize;
+	current->NoN = FALSE;
+	current->type = NONE;
+
+	// See if we can identify it by CRC
+	uc_crc = CRC_Calculate( 0xFFFFFFFF, &RDRAM[uc_start & 0x1FFFFFFF], 4096 );
+	for (u32 i = 0; i < sizeof( specialMicrocodes ) / sizeof( SpecialMicrocodeInfo ); i++)
+	{
+		if (uc_crc == specialMicrocodes[i].crc)
+		{
+			current->type = specialMicrocodes[i].type;
+			return current;
+		}
+	}
+
+	// See if we can identify it by text
+	char uc_data[2048];
+	UnswapCopy( &RDRAM[uc_dstart & 0x1FFFFFFF], uc_data, 2048 );
+	strcpy( uc_str, "Not Found" );
+	
+	for (u32 i = 0; i < 2048; i++)
+	{
+		if ((uc_data[i] == 'R') && (uc_data[i+1] == 'S') && (uc_data[i+2] == 'P'))
+		{
+			u32 j = 0;
+			while (uc_data[i+j] > 0x0A)
+			{
+				uc_str[j] = uc_data[i+j];
+				j++;
+			}
+            		
+			uc_str[j] = 0x00;
+
+			int type = NONE;
+
+			if (strncmp( &uc_str[4], "SW", 2 ) == 0)
+			{
+				type = F3D;
+			}
+			else if (strncmp( &uc_str[4], "Gfx", 3 ) == 0)
+			{
+				current->NoN = (strncmp( &uc_str[20], ".NoN", 4 ) == 0);
+
+				if (strncmp( &uc_str[14], "F3D", 3 ) == 0)
+				{
+					if (uc_str[28] == '1')
+						type = F3DEX;
+					else if (uc_str[31] == '2')
+						type = F3DEX2;
+				}
+				else if (strncmp( &uc_str[14], "L3D", 3 ) == 0)
+				{
+					if (uc_str[28] == '1')
+						type = L3DEX;
+					else if (uc_str[31] == '2')
+						type = L3DEX2;
+				}
+				else if (strncmp( &uc_str[14], "S2D", 3 ) == 0)
+				{
+					if (uc_str[28] == '1')
+						type = S2DEX;
+					else if (uc_str[31] == '2')
+						type = S2DEX2;
+				}
+			}
+
+			if (type != NONE)
+			{
+				current->type = type;
+				return current;
+			}
+
+			break;
+		}
+	}
+
+	for (u32 i = 0; i < sizeof( specialMicrocodes ) / sizeof( SpecialMicrocodeInfo ); i++)
+	{
+		if (strcmp( uc_str, specialMicrocodes[i].text ) == 0)
+		{
+			current->type = specialMicrocodes[i].type;
+			return current;
+		}
+	}
+
+	// Let the user choose the microcode
+	current->type = DialogBox( hInstance, MAKEINTRESOURCE( IDD_MICROCODEDLG ), hWnd, MicrocodeDlgProc );
+	return current;
+}
+
+void GBI_MakeCurrent( MicrocodeInfo *current )
+{
+	if (current != GBI.top)
+	{
+		if (current == GBI.bottom)
+		{
+			GBI.bottom = current->higher;
+			GBI.bottom->lower = NULL;
+		}
+		else
+		{
+			current->higher->lower = current->lower;
+			current->lower->higher = current->higher;
+		}
+
+		current->higher = NULL;
+		current->lower = GBI.top;
+		GBI.top->higher = current;
+		GBI.top = current;
+	}
+
+	if (!GBI.current || (GBI.current->type != current->type))
+	{
+		for (int i = 0; i <= 0xFF; i++)
+			GBI.cmd[i] = GBI_Unknown;
+
+		RDP_Init();
+
+		switch (current->type)
+		{
+			case F3D:		F3D_Init();		break;
+			case F3DEX:		F3DEX_Init();	break;
+			case F3DEX2:	F3DEX2_Init();	break;
+			case L3D:		L3D_Init();		break;
+			case L3DEX:		L3DEX_Init();	break;
+			case L3DEX2:	L3DEX2_Init();	break;
+			case S2DEX:		S2DEX_Init();	break;
+			case S2DEX2:	S2DEX2_Init();	break;
+			case F3DDKR:	F3DDKR_Init();	break;
+			case F3DWRUS:	F3DWRUS_Init();	break;
+			case F3DPD:		F3DPD_Init();	break;
+		}
+	}
+
+	GBI.current = current;
 }

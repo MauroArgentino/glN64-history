@@ -254,39 +254,39 @@ void RDP_Init()
 {
 	// Initialize RDP commands to RDP_UNKNOWN
 	for (int i = 0xC8; i <= 0xCF; i++)
-		GBICmd[i] = RDP_Unknown;
+		GBI.cmd[i] = RDP_Unknown;
 
 	// Initialize RDP commands to RDP_UNKNOWN
 	for (int i = 0xE4; i <= 0xFF; i++)
-		GBICmd[i] = RDP_Unknown;
+		GBI.cmd[i] = RDP_Unknown;
 
 	// Set known GBI commands
-	GBICmd[G_NOOP]				= RDP_NoOp;
-	GBICmd[G_SETCIMG]			= RDP_SetCImg;
-	GBICmd[G_SETZIMG]			= RDP_SetZImg;
-	GBICmd[G_SETTIMG]			= RDP_SetTImg;
-	GBICmd[G_SETCOMBINE]		= RDP_SetCombine;
-	GBICmd[G_SETENVCOLOR]		= RDP_SetEnvColor;
-	GBICmd[G_SETPRIMCOLOR]		= RDP_SetPrimColor;
-	GBICmd[G_SETBLENDCOLOR]		= RDP_SetBlendColor;
-	GBICmd[G_SETFOGCOLOR]		= RDP_SetFogColor;
-	GBICmd[G_SETFILLCOLOR]		= RDP_SetFillColor;
-	GBICmd[G_FILLRECT]			= RDP_FillRect;
-	GBICmd[G_SETTILE]			= RDP_SetTile;
-	GBICmd[G_LOADTILE]			= RDP_LoadTile;
-	GBICmd[G_LOADBLOCK]			= RDP_LoadBlock;
-	GBICmd[G_SETTILESIZE]		= RDP_SetTileSize;
-	GBICmd[G_LOADTLUT]			= RDP_LoadTLUT;
-	GBICmd[G_RDPSETOTHERMODE]	= RDP_SetOtherMode;
-	GBICmd[G_SETPRIMDEPTH]		= RDP_SetPrimDepth;
-	GBICmd[G_SETSCISSOR]		= RDP_SetScissor;
-	GBICmd[G_SETCONVERT]		= RDP_SetConvert;
-	GBICmd[G_SETKEYR]			= RDP_SetKeyR;
-	GBICmd[G_SETKEYGB]			= RDP_SetKeyGB;
-	GBICmd[G_RDPFULLSYNC]		= RDP_FullSync;
-	GBICmd[G_RDPTILESYNC]		= RDP_TileSync;
-	GBICmd[G_RDPPIPESYNC]		= RDP_PipeSync;
-	GBICmd[G_RDPLOADSYNC]		= RDP_LoadSync;
-	GBICmd[G_TEXRECTFLIP]		= RDP_TexRectFlip;
-	GBICmd[G_TEXRECT]			= RDP_TexRect;
+	GBI.cmd[G_NOOP]				= RDP_NoOp;
+	GBI.cmd[G_SETCIMG]			= RDP_SetCImg;
+	GBI.cmd[G_SETZIMG]			= RDP_SetZImg;
+	GBI.cmd[G_SETTIMG]			= RDP_SetTImg;
+	GBI.cmd[G_SETCOMBINE]		= RDP_SetCombine;
+	GBI.cmd[G_SETENVCOLOR]		= RDP_SetEnvColor;
+	GBI.cmd[G_SETPRIMCOLOR]		= RDP_SetPrimColor;
+	GBI.cmd[G_SETBLENDCOLOR]	= RDP_SetBlendColor;
+	GBI.cmd[G_SETFOGCOLOR]		= RDP_SetFogColor;
+	GBI.cmd[G_SETFILLCOLOR]		= RDP_SetFillColor;
+	GBI.cmd[G_FILLRECT]			= RDP_FillRect;
+	GBI.cmd[G_SETTILE]			= RDP_SetTile;
+	GBI.cmd[G_LOADTILE]			= RDP_LoadTile;
+	GBI.cmd[G_LOADBLOCK]		= RDP_LoadBlock;
+	GBI.cmd[G_SETTILESIZE]		= RDP_SetTileSize;
+	GBI.cmd[G_LOADTLUT]			= RDP_LoadTLUT;
+	GBI.cmd[G_RDPSETOTHERMODE]	= RDP_SetOtherMode;
+	GBI.cmd[G_SETPRIMDEPTH]		= RDP_SetPrimDepth;
+	GBI.cmd[G_SETSCISSOR]		= RDP_SetScissor;
+	GBI.cmd[G_SETCONVERT]		= RDP_SetConvert;
+	GBI.cmd[G_SETKEYR]			= RDP_SetKeyR;
+	GBI.cmd[G_SETKEYGB]			= RDP_SetKeyGB;
+	GBI.cmd[G_RDPFULLSYNC]		= RDP_FullSync;
+	GBI.cmd[G_RDPTILESYNC]		= RDP_TileSync;
+	GBI.cmd[G_RDPPIPESYNC]		= RDP_PipeSync;
+	GBI.cmd[G_RDPLOADSYNC]		= RDP_LoadSync;
+	GBI.cmd[G_TEXRECTFLIP]		= RDP_TexRectFlip;
+	GBI.cmd[G_TEXRECT]			= RDP_TexRect;
 }

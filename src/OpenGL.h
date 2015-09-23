@@ -65,6 +65,7 @@ struct GLInfo
 	BYTE	numVertices;
 	HWND	hFullscreenWnd;
 
+	BOOL	usePolygonStipple;
 	GLubyte	stipplePattern[32][8][128];
 	BYTE	lastStipple;
 

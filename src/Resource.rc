@@ -137,16 +137,18 @@ BEGIN
     CONTROL         "Enable 2xSaI texture scaling",IDC_ENABLE2XSAI,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,16,66,107,10
     CONTROL         "Enable Fog",IDC_FOG,"Button",BS_AUTOCHECKBOX | 
-                    WS_TABSTOP,16,81,51,10
+                    WS_TABSTOP,135,81,51,10
     CONTROL         "Hardware Frame Buffer Textures (Experimental)",
                     IDC_FRAMEBUFFER,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,17,
                     154,171,10
     COMBOBOX        IDC_TEXTUREBPP,87,118,107,75,CBS_DROPDOWNLIST | 
                     WS_VSCROLL | WS_TABSTOP
     LTEXT           "Texture Bit Depth:",IDC_STATIC,15,120,60,8
+    CONTROL         "Enabled Dithered Alpha Testing",IDC_DITHEREDALPHATEST,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,16,81,116,10
 END
 
-IDD_UCODEDLG DIALOGEX 0, 0, 384, 129
+IDD_MICROCODEDLG DIALOGEX 0, 0, 384, 129
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | 
     WS_SYSMENU
 CAPTION "glN64 Unknown Microcode"
@@ -154,7 +156,7 @@ FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
     DEFPUSHBUTTON   "OK",IDOK,136,108,50,14
     PUSHBUTTON      "Stop",IDCANCEL,198,108,50,14
-    COMBOBOX        IDC_UCODE,168,86,87,80,CBS_DROPDOWN | WS_VSCROLL | 
+    COMBOBOX        IDC_MICROCODE,168,86,87,80,CBS_DROPDOWN | WS_VSCROLL | 
                     WS_TABSTOP
     LTEXT           "Microcode:",IDC_STATIC,129,88,36,8
     LTEXT           "Unknown microcode detected. Please notify Orkin, including the following information:",
@@ -190,7 +192,7 @@ BEGIN
         BOTTOMMARGIN, 194
     END
 
-    IDD_UCODEDLG, DIALOG
+    IDD_MICROCODEDLG, DIALOG
     BEGIN
         LEFTMARGIN, 7
         RIGHTMARGIN, 377

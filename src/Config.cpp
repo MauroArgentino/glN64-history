@@ -65,7 +65,7 @@ void Config_LoadConfig()
         RegQueryValueEx( hKey, "Fullscreen Bit Depth", 0, NULL, (BYTE*)&OGL.fullscreenBits, &size );
 		RegQueryValueEx( hKey, "Fullscreen Width", 0, NULL, (BYTE*)&OGL.fullscreenWidth, &size );
 		RegQueryValueEx( hKey, "Fullscreen Height", 0, NULL, (BYTE*)&OGL.fullscreenHeight, &size );
-		RegQueryValueEx( hKey, "Fullscreen Refresh Rate", 0, NULL, (BYTE*)&OGL.fullscreenRefresh, &size );
+		RegQueryValueEx( hKey, "Fullscreen Refresh", 0, NULL, (BYTE*)&OGL.fullscreenRefresh, &size );
 		RegQueryValueEx( hKey, "Windowed Width", 0, NULL, (BYTE*)&OGL.windowedWidth, &size );
 		RegQueryValueEx( hKey, "Windowed Height", 0, NULL, (BYTE*)&OGL.windowedHeight, &size );
 		RegQueryValueEx( hKey, "Windowed Width", 0, NULL, (BYTE*)&OGL.windowedWidth, &size );
@@ -83,6 +83,9 @@ void Config_LoadConfig()
 
 		RegQueryValueEx( hKey, "Hardware Frame Buffer Textures", 0, NULL, (BYTE*)&value, &size );
 		OGL.frameBufferTextures = value ? TRUE : FALSE;
+
+		RegQueryValueEx( hKey, "Dithered Alpha Testing", 0, NULL, (BYTE*)&value, &size );
+		OGL.usePolygonStipple = value ? TRUE : FALSE;
 
 		RegQueryValueEx( hKey, "Texture Bit Depth", 0, NULL, (BYTE*)&value, &size );
 		OGL.textureBitDepth = value;
@@ -103,6 +106,7 @@ void Config_LoadConfig()
 		OGL.frameBufferTextures = FALSE;
 		OGL.enable2xSaI = FALSE;
 		OGL.textureBitDepth = 1;
+		OGL.usePolygonStipple = FALSE;
 	}
 }
 
@@ -134,6 +138,9 @@ void Config_SaveConfig()
 
 	value = OGL.frameBufferTextures ? 1 : 0;
 	RegSetValueEx( hKey, "Hardware Frame Buffer Textures", 0, REG_DWORD, (BYTE*)&value, 4 );
+
+	value = OGL.usePolygonStipple ? 1 : 0;
+	RegSetValueEx( hKey, "Dithered Alpha Testing", 0, REG_DWORD, (BYTE*)&value, 4 );
 
 	value = OGL.textureBitDepth;
 	RegSetValueEx( hKey, "Texture Bit Depth", 0, REG_DWORD, (BYTE*)&value, 4 );
@@ -168,6 +175,7 @@ void Config_ApplyDlgConfig( HWND hWndDlg )
 	OGL.windowedHeight = windowedModes[i].height;
 
 	OGL.frameBufferTextures = (SendDlgItemMessage( hWndDlg, IDC_FRAMEBUFFER, BM_GETCHECK, NULL, NULL ) == BST_CHECKED);
+	OGL.usePolygonStipple = (SendDlgItemMessage( hWndDlg, IDC_DITHEREDALPHATEST, BM_GETCHECK, NULL, NULL ) == BST_CHECKED);
 
 	if (!OGL.fullscreen)
 		OGL_ResizeWindow();
@@ -318,6 +326,8 @@ BOOL CALLBACK ConfigDlgProc( HWND hWndDlg, UINT message, WPARAM wParam, LPARAM l
 			// Enable/disable fog
 			SendDlgItemMessage( hWndDlg, IDC_FOG, BM_SETCHECK, OGL.fog ? (LPARAM)BST_CHECKED : (LPARAM)BST_UNCHECKED, NULL );
 			SendDlgItemMessage( hWndDlg, IDC_FRAMEBUFFER, BM_SETCHECK, OGL.frameBufferTextures ? (LPARAM)BST_CHECKED : (LPARAM)BST_UNCHECKED, NULL );
+
+			SendDlgItemMessage( hWndDlg, IDC_DITHEREDALPHATEST, BM_SETCHECK, OGL.usePolygonStipple ? (LPARAM)BST_CHECKED : (LPARAM)BST_UNCHECKED, NULL );
 
 			_ltoa( cache.maxBytes / 1048576, text, 10 );
 			SendDlgItemMessage( hWndDlg, IDC_CACHEMEGS, WM_SETTEXT, NULL, (LPARAM)text );

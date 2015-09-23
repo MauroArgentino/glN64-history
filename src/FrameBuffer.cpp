@@ -24,7 +24,7 @@ void FrameBuffer_RemoveBottom()
 	TextureCache_Remove( frameBuffer.bottom->texture );
 
 	if (frameBuffer.bottom == frameBuffer.top)
-		frameBuffer.top == NULL;
+		frameBuffer.top = NULL;
 
 	free( frameBuffer.bottom );
 
@@ -138,8 +138,6 @@ void FrameBuffer_Destroy()
 {
 	while (frameBuffer.bottom)
 		FrameBuffer_RemoveBottom();
-
-	frameBuffer.top = NULL;
 }
 
 void FrameBuffer_SaveBuffer( u32 address, u16 size, u16 width, u16 height )
@@ -162,7 +160,7 @@ void FrameBuffer_SaveBuffer( u32 address, u16 size, u16 width, u16 height )
 			}
 
 			glBindTexture( GL_TEXTURE_2D, current->texture->glName );
-			glCopyTexSubImage2D( GL_TEXTURE_2D, 0, 0, 0, 0, OGL.height - current->texture->height, current->texture->width, current->texture->height );
+			glCopyTexSubImage2D( GL_TEXTURE_2D, 0, 0, 0, 0, OGL.height - current->texture->height + OGL.heightOffset, current->texture->width, current->texture->height );
 			*(u32*)&RDRAM[current->startAddress] = current->startAddress;
 
 			current->changed = TRUE;
@@ -204,7 +202,7 @@ void FrameBuffer_SaveBuffer( u32 address, u16 size, u16 width, u16 height )
 	cache.cachedBytes += current->texture->textureBytes;
 
 	glBindTexture( GL_TEXTURE_2D, current->texture->glName );
-	glCopyTexImage2D( GL_TEXTURE_2D, 0, GL_RGBA8, 0, OGL.height - current->texture->height, current->texture->realWidth, current->texture->realHeight, 0 );
+	glCopyTexImage2D( GL_TEXTURE_2D, 0, GL_RGBA8, 0, OGL.height - current->texture->height + OGL.heightOffset, current->texture->realWidth, current->texture->realHeight, 0 );
 	*(u32*)&RDRAM[current->startAddress] = current->startAddress;
 
 	current->changed = TRUE;
@@ -337,7 +335,7 @@ void FrameBuffer_RestoreBuffer( u32 address, u16 size, u16 width )
 			glLoadIdentity();
  			glOrtho( 0, OGL.width, 0, OGL.height, -1.0f, 1.0f );
 //			glOrtho( 0, RDP.width, RDP.height, 0, -1.0f, 1.0f );
-			glViewport( 0, 0, OGL.width, OGL.height );
+			glViewport( 0, OGL.heightOffset, OGL.width, OGL.height );
 
 			float u1, v1;
 

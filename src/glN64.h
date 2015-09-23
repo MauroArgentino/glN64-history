@@ -7,8 +7,9 @@
 #define RSPTHREAD
 
 extern HWND			hWnd;
-extern HWND			hFullscreen;
+//extern HWND			hFullscreen;
 extern HWND			hStatusBar;
+extern HWND			hToolBar;
 extern HINSTANCE	hInstance;
 
 extern char			pluginName[];

@@ -18,7 +18,7 @@ typedef struct
 {
 	HANDLE thread;
 
-	u32 PC[18], PCi, busy, halt, close, DList, ucode, uc_start, uc_dstart, cmd, nextCmd, count;
+	u32 PC[18], PCi, busy, halt, close, DList, uc_start, uc_dstart, cmd, nextCmd, count;
 
 	// Events for thread messages, see defines at the top, or RSP_Thread
 	HANDLE			threadMsg[6];

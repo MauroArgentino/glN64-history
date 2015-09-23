@@ -237,7 +237,7 @@ void OGL_UpdateScale()
 
 void OGL_ResizeWindow()
 {
-	RECT	windowRect, statusRect;
+	RECT	windowRect, statusRect, toolRect;
 
 	if (OGL.fullscreen)
 	{
@@ -245,32 +245,35 @@ void OGL_ResizeWindow()
 		OGL.height = OGL.fullscreenHeight;
 		OGL.heightOffset = 0;
 
-		SetWindowPos( OGL.hWnd, NULL, 0, 0,	OGL.width, OGL.height, SWP_NOACTIVATE | SWP_NOZORDER | SWP_SHOWWINDOW );
+		SetWindowPos( hWnd, NULL, 0, 0,	OGL.width, OGL.height, SWP_NOACTIVATE | SWP_NOZORDER | SWP_SHOWWINDOW );
 	}
 	else
 	{
 		OGL.width = OGL.windowedWidth;
 		OGL.height = OGL.windowedHeight;
 
-		GetClientRect( OGL.hWnd, &windowRect );
+		GetClientRect( hWnd, &windowRect );
 		GetWindowRect( hStatusBar, &statusRect );
+
+		if (hToolBar)
+			GetWindowRect( hToolBar, &toolRect );
+		else
+			toolRect.bottom = toolRect.top = 0;
 
 		OGL.heightOffset = (statusRect.bottom - statusRect.top);
 		windowRect.right = windowRect.left + OGL.windowedWidth - 1;
 		windowRect.bottom = windowRect.top + OGL.windowedHeight - 1 + OGL.heightOffset;
 
-		AdjustWindowRect( &windowRect, GetWindowLong( OGL.hWnd, GWL_STYLE ), GetMenu( OGL.hWnd ) != NULL );
+		AdjustWindowRect( &windowRect, GetWindowLong( hWnd, GWL_STYLE ), GetMenu( hWnd ) != NULL );
 
-		SetWindowPos( OGL.hWnd, NULL, 0, 0,	windowRect.right - windowRect.left + 1,
-						windowRect.bottom - windowRect.top + 1, SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOMOVE );
+		SetWindowPos( hWnd, NULL, 0, 0,	windowRect.right - windowRect.left + 1,
+						windowRect.bottom - windowRect.top + 1 + toolRect.bottom - toolRect.top + 1, SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOMOVE );
 	}
 }
 
 bool OGL_Start()
 {
 	int		pixelFormat;
-
-	OGL.hWnd = hWnd;
 
 	PIXELFORMATDESCRIPTOR pfd = { 
 		sizeof(PIXELFORMATDESCRIPTOR),    // size of this pfd 
@@ -293,36 +296,36 @@ bool OGL_Start()
 		0, 0, 0                           // layer masks ignored 
 	};
 
-	if ((OGL.hDC = GetDC( OGL.hWnd )) == NULL)
+	if ((OGL.hDC = GetDC( hWnd )) == NULL)
 	{
-		MessageBox( OGL.hWnd, "Error while getting a device context!", pluginName, MB_ICONERROR | MB_OK );
+		MessageBox( hWnd, "Error while getting a device context!", pluginName, MB_ICONERROR | MB_OK );
 		return FALSE;
 	}
 
 	if ((pixelFormat = ChoosePixelFormat( OGL.hDC, &pfd )) == 0)
 	{
-		MessageBox( OGL.hWnd, "Unable to find a suitable pixel format!", pluginName, MB_ICONERROR | MB_OK );
+		MessageBox( hWnd, "Unable to find a suitable pixel format!", pluginName, MB_ICONERROR | MB_OK );
 		OGL_Stop();
 		return FALSE;
 	}
 
 	if ((SetPixelFormat( OGL.hDC, pixelFormat, &pfd )) == FALSE)
 	{
-		MessageBox( OGL.hWnd, "Error while setting pixel format!", pluginName, MB_ICONERROR | MB_OK );
+		MessageBox( hWnd, "Error while setting pixel format!", pluginName, MB_ICONERROR | MB_OK );
 		OGL_Stop();
 		return FALSE;
 	}
 
 	if ((OGL.hRC = wglCreateContext( OGL.hDC )) == NULL)
 	{
-		MessageBox( OGL.hWnd, "Error while creating OpenGL context!", pluginName, MB_ICONERROR | MB_OK );
+		MessageBox( hWnd, "Error while creating OpenGL context!", pluginName, MB_ICONERROR | MB_OK );
 		OGL_Stop();
 		return FALSE;
 	}
 
 	if ((wglMakeCurrent( OGL.hDC, OGL.hRC )) == FALSE)
 	{
-		MessageBox( OGL.hWnd, "Error while making OpenGL context current!", pluginName, MB_ICONERROR | MB_OK );
+		MessageBox( hWnd, "Error while making OpenGL context current!", pluginName, MB_ICONERROR | MB_OK );
 		OGL_Stop();
 		return FALSE;
 	}
@@ -356,7 +359,7 @@ void OGL_Stop()
 
 	if (OGL.hDC)
 	{
-		ReleaseDC( OGL.hWnd, OGL.hDC );
+		ReleaseDC( hWnd, OGL.hDC );
 		OGL.hDC = NULL;
 	}
 }
@@ -378,7 +381,7 @@ void OGL_UpdateCullFace()
 
 void OGL_UpdateViewport()
 {
-	glViewport( gSP.viewport.x * OGL.scaleX, (VI.height - (gSP.viewport.y + gSP.viewport.height)) * OGL.scaleY + (OGL.frameBufferTextures ? 0 : OGL.heightOffset), 
+	glViewport( gSP.viewport.x * OGL.scaleX, (VI.height - (gSP.viewport.y + gSP.viewport.height)) * OGL.scaleY + OGL.heightOffset, 
 		gSP.viewport.width * OGL.scaleX, gSP.viewport.height * OGL.scaleY ); 
 	glDepthRange( 0.0f, 1.0f );//gSP.viewport.nearz, gSP.viewport.farz );
 }
@@ -448,8 +451,7 @@ void OGL_UpdateStates()
 		else
 			glDisable( GL_ALPHA_TEST );
 
-		// Slow on anything but GeForce, so limit it to NV_register_combiners
-		if (OGL.NV_register_combiners && (gDP.otherMode.alphaCompare == G_AC_DITHER) && !(gDP.otherMode.alphaCvgSel))
+		if (OGL.usePolygonStipple && (gDP.otherMode.alphaCompare == G_AC_DITHER) && !(gDP.otherMode.alphaCvgSel))
 			glEnable( GL_POLYGON_STIPPLE );
 		else
 			glDisable( GL_POLYGON_STIPPLE );
@@ -457,7 +459,7 @@ void OGL_UpdateStates()
 
 	if (gDP.changed & CHANGED_SCISSOR)
 	{
-		glScissor( gDP.scissor.ulx * OGL.scaleX, (VI.height - gDP.scissor.lry) * OGL.scaleY + (OGL.frameBufferTextures ? 0 : OGL.heightOffset),
+		glScissor( gDP.scissor.ulx * OGL.scaleX, (VI.height - gDP.scissor.lry) * OGL.scaleY + OGL.heightOffset,
 			(gDP.scissor.lrx - gDP.scissor.ulx) * OGL.scaleX, (gDP.scissor.lry - gDP.scissor.uly) * OGL.scaleY );
 	}
 
@@ -659,8 +661,7 @@ void OGL_AddTriangle( SPVertex *vertices, int v0, int v1, int v2 )
 
 void OGL_DrawTriangles()
 {
-	// Slow on anything but GeForce
-	if (OGL.NV_register_combiners && (gDP.otherMode.alphaCompare == G_AC_DITHER) && !(gDP.otherMode.alphaCvgSel))
+	if (OGL.usePolygonStipple && (gDP.otherMode.alphaCompare == G_AC_DITHER) && !(gDP.otherMode.alphaCvgSel))
 	{
 		OGL.lastStipple = (OGL.lastStipple + 1) & 0x7;
 		glPolygonStipple( OGL.stipplePattern[(BYTE)(gDP.envColor.a * 255.0f) >> 3][OGL.lastStipple] );
@@ -715,7 +716,7 @@ void OGL_DrawRect( int ulx, int uly, int lrx, int lry, float *color )
 	glMatrixMode( GL_PROJECTION );
     glLoadIdentity();
 	glOrtho( 0, VI.width, VI.height, 0, 1.0f, -1.0f );
-	glViewport( 0, (OGL.frameBufferTextures ? 0 : OGL.heightOffset), OGL.width, OGL.height );
+	glViewport( 0, OGL.heightOffset, OGL.width, OGL.height );
 	glDepthRange( 0.0f, 1.0f );
 
 	glColor4f( color[0], color[1], color[2], color[3] );
@@ -747,7 +748,7 @@ void OGL_DrawTexturedRect( float ulx, float uly, float lrx, float lry, float uls
 	glMatrixMode( GL_PROJECTION );
     glLoadIdentity();
 	glOrtho( 0, VI.width, VI.height, 0, 1.0f, -1.0f );
-	glViewport( 0, (OGL.frameBufferTextures ? 0 : OGL.heightOffset), OGL.width, OGL.height );
+	glViewport( 0, OGL.heightOffset, OGL.width, OGL.height );
 
 	if (combiner.usesT0)
 	{
@@ -929,6 +930,7 @@ void OGL_SaveScreenshot()
 
 	glReadBuffer( GL_FRONT );
 	glReadPixels( 0, OGL.heightOffset, OGL.width, OGL.height, GL_BGR_EXT, GL_UNSIGNED_BYTE, pixelData );
+	glReadBuffer( GL_BACK );
 
 	infoHeader.biSize = sizeof( BITMAPINFOHEADER );
 	infoHeader.biWidth = OGL.width;

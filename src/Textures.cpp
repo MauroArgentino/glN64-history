@@ -301,6 +301,7 @@ BOOL TextureCache_Verify()
 	}
 	if (i != cache.numCached) return FALSE;
 
+	i = 0;
 	current = cache.bottom;
 	while (current)
 	{
@@ -376,6 +377,8 @@ CachedTexture *TextureCache_AddTop()
 	{
 		if (cache.bottom != cache.dummy)
 			TextureCache_RemoveBottom();
+		else if (cache.dummy->higher)
+			TextureCache_Remove( cache.dummy->higher );
 	}
 
 	CachedTexture *newtop = (CachedTexture*)malloc( sizeof( CachedTexture ) );
@@ -981,8 +984,8 @@ void TextureCache_Update( u32 t )
 
 	crc = TextureCache_CalculateCRC( t, width, height );
 
-	if (!TextureCache_Verify())
-		current = cache.top;
+//	if (!TextureCache_Verify())
+//		current = cache.top;
 
 	current = cache.top;
  	while (current)

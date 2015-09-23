@@ -117,6 +117,7 @@ DWORD WINAPI RSP_ThreadProc( LPVOID lpParameter )
 
 		MessageBox( NULL, exception, pluginName, MB_OK | MB_ICONERROR );
 
+		GBI_Destroy();
 		DepthBuffer_Destroy();
 		OGL_Stop();
 	}
@@ -205,7 +206,7 @@ void RSP_ProcessDList()
 		RSP.PC[RSP.PCi] += 8;
 		RSP.nextCmd = _SHIFTR( *(u32*)&RDRAM[RSP.PC[RSP.PCi]], 24, 8 );
 
-		GBICmd[RSP.cmd]( w0, w1 );
+		GBI.cmd[RSP.cmd]( w0, w1 );
 	}
 
 /*	if (OGL.frameBufferTextures && gDP.colorImage.changed)
@@ -243,12 +244,10 @@ void RSP_Init()
 	RSP.DList = 0;
 	RSP.uc_start = RSP.uc_dstart = 0;
 
-	GBI_InituCode( NONE );
-
 	gDP.loadTile = &gDP.tiles[7];
 	gSP.textureTile[0] = &gDP.tiles[0];
 	gSP.textureTile[1] = &gDP.tiles[1];
 	DepthBuffer_Init();
-
+	GBI_Init();
 	OGL_Start();
 }

@@ -4,10 +4,11 @@
 //
 #define IDD_DEBUGDLG                    101
 #define IDD_CONFIGDLG                   102
-#define IDD_UCODEDLG                    107
+#define IDD_MICROCODEDLG                107
 #define IDC_DUMP                        1002
 #define IDC_DEBUGEDIT                   1032
 #define IDC_UCODE                       1036
+#define IDC_MICROCODE                   1036
 #define IDC_FORCEUCODE                  1037
 #define IDC_BUTTON3                     1040
 #define IDC_APPLY                       1040
@@ -55,8 +56,9 @@
 #define IDC_SHOWCOMBINE                 1090
 #define IDC_SHOWIGNORED                 1091
 #define IDC_DEBUGDETAIL                 1092
-#define IDC_COMBO2                      1094
 #define IDC_TEXTBOX                     1097
+#define IDC_CHECK2                      1098
+#define IDC_DITHEREDALPHATEST           1098
 
 // Next default values for new objects
 // 
@@ -64,7 +66,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        108
 #define _APS_NEXT_COMMAND_VALUE         40001
-#define _APS_NEXT_CONTROL_VALUE         1098
+#define _APS_NEXT_CONTROL_VALUE         1099
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif
