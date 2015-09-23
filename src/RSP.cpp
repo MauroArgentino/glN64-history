@@ -1,4 +1,8 @@
-#include <windows.h>
+#ifndef __LINUX__
+# include <windows.h>
+#else
+# include "winlnxdefs.h"
+#endif
 #include <math.h>
 #include "glN64.h"
 #include "OpenGL.h"
@@ -21,7 +25,7 @@ RSPInfo		RSP;
 void RSP_LoadMatrix( f32 mtx[4][4], u32 address )
 {
 	f32 recip = 1.5258789e-05f;
-
+#ifndef __LINUX__
 	__asm {
 		mov		esi, dword ptr [RDRAM];
 		add		esi, dword ptr [address];
@@ -65,8 +69,66 @@ LoadLoop:
 		add		edi, 10h
 		loop	LoadLoop
 	}
+#else // !__LINUX__
+# ifdef X86_ASM
+	__asm__ __volatile__(
+	".intel_syntax noprefix"					"\n\t"
+	"LoadLoop:"									"\n\t"
+	"	fild	word ptr [esi+0x02]"			"\n\t"
+	"	movzx	eax, word ptr [esi+0x22]"		"\n\t"
+	"	mov		dword ptr [edi], eax"			"\n\t"
+	"	fild	dword ptr [edi]"				"\n\t"
+	"	fmul	%0"								"\n\t"
+	"	fadd"									"\n\t"
+	"	fstp	dword ptr [edi]"				"\n\t"
+
+	"	fild	word ptr [esi+0x00]"			"\n\t"
+	"	movzx	eax, word ptr [esi+0x20]"		"\n\t"
+	"	mov		dword ptr [edi+0x04], eax"		"\n\t"
+	"	fild	dword ptr [edi+0x04]"			"\n\t"
+	"	fmul	%0"								"\n\t"
+	"	fadd"									"\n\t"
+	"	fstp	dword ptr [edi+0x04]"			"\n\t"
+
+	"	fild	word ptr [esi+0x06]"			"\n\t"
+	"	movzx	eax, word ptr [esi+0x26]"		"\n\t"
+	"	mov		dword ptr [edi+0x08], eax"		"\n\t"
+	"	fild	dword ptr [edi+0x08]"			"\n\t"
+	"	fmul	%0"								"\n\t"
+	"	fadd"									"\n\t"
+	"	fstp	dword ptr [edi+0x08]"			"\n\t"
+
+	"	fild	word ptr [esi+0x04]"			"\n\t"
+	"	movzx	eax, word ptr [esi+0x24]"		"\n\t"
+	"	mov		dword ptr [edi+0x0C], eax"		"\n\t"
+	"	fild	dword ptr [edi+0x0C]"			"\n\t"
+	"	fmul	%0"								"\n\t"
+	"	fadd"									"\n\t"
+	"	fstp	dword ptr [edi+0x0C]"			"\n\t"
+
+	"	add		esi, 0x08"						"\n\t"
+	"	add		edi, 0x10"						"\n\t"
+	"	loop	LoadLoop"						"\n\t"
+	".att_syntax prefix"						"\n\t"
+	: /* no output */
+	: "f"(recip), "S"((int)RDRAM+address), "D"(mtx), "c"(4)
+	: "memory" );
+# else // X86_ASM
+	struct _N64Matrix
+	{
+		SHORT integer[4][4];
+		WORD fraction[4][4];
+	} *n64Mat = (struct _N64Matrix *)&RDRAM[address];
+	int i, j;
+
+	for (i = 0; i < 4; i++)
+		for (j = 0; j < 4; j++)
+			mtx[i][j] = (GLfloat)(n64Mat->integer[i][j^1]) + (GLfloat)(n64Mat->fraction[i][j^1]) * recip;
+# endif // !X86_ASM
+#endif // __LINUX__
 }
 
+#ifdef RSPTHREAD
 DWORD WINAPI RSP_ThreadProc( LPVOID lpParameter )
 {
 	RSP_Init();
@@ -112,9 +174,7 @@ DWORD WINAPI RSP_ThreadProc( LPVOID lpParameter )
 	__except(EXCEPTION_EXECUTE_HANDLER)
 	{
 		char exception[256];
-
 		sprintf( exception, "Win32 exception 0x%08X occured in glN64", GetExceptionCode() );
-
 		MessageBox( NULL, exception, pluginName, MB_OK | MB_ICONERROR );
 
 		GBI_Destroy();
@@ -125,6 +185,7 @@ DWORD WINAPI RSP_ThreadProc( LPVOID lpParameter )
 	RSP.thread = NULL;
 	return 0;
 }
+#endif // RSPTHREAD
 
 void RSP_ProcessDList()
 {
@@ -161,15 +222,15 @@ void RSP_ProcessDList()
 	gDPSetAlphaCompare( G_AC_NONE );
 	gDPSetDepthSource( G_ZS_PIXEL );
 	gDPSetRenderMode( 0, 0 );
-	gDPSetAlphaDither( G_AD_DISABLE ); 
-	gDPSetColorDither( G_CD_DISABLE ); 
+	gDPSetAlphaDither( G_AD_DISABLE );
+	gDPSetColorDither( G_CD_DISABLE );
 	gDPSetCombineKey( G_CK_NONE );
-	gDPSetTextureConvert( G_TC_FILT ); 
+	gDPSetTextureConvert( G_TC_FILT );
 	gDPSetTextureFilter( G_TF_POINT );
-	gDPSetTextureLUT( G_TT_NONE ); 
-	gDPSetTextureLOD( G_TL_TILE ); 
-	gDPSetTextureDetail( G_TD_CLAMP ); 
-	gDPSetTexturePersp( G_TP_PERSP ); 
+	gDPSetTextureLUT( G_TT_NONE );
+	gDPSetTextureLOD( G_TL_TILE );
+	gDPSetTextureDetail( G_TD_CLAMP );
+	gDPSetTexturePersp( G_TP_PERSP );
 	gDPSetCycleType( G_CYC_1CYCLE );
 	gDPPipelineMode( G_PM_NPRIMITIVE );
 
@@ -194,6 +255,16 @@ void RSP_ProcessDList()
 			break;
 		}
 
+//		printf( "!!!!!! RDRAM = 0x%8.8x\n", RDRAM );//RSP.PC[RSP.PCi] );
+/*		{
+			static u8 *lastRDRAM = 0;
+			if (lastRDRAM == 0)
+				lastRDRAM = RDRAM;
+			if (RDRAM != lastRDRAM)
+			{
+				__asm__( "int $3" );
+			}
+		}*/
 		u32 w0 = *(u32*)&RDRAM[RSP.PC[RSP.PCi]];
 		u32 w1 = *(u32*)&RDRAM[RSP.PC[RSP.PCi] + 4];
 		RSP.cmd = _SHIFTR( w0, 24, 8 );
@@ -226,6 +297,7 @@ void RSP_Init()
 	u32 testAddress;
 
 	// Calculate RDRAM size by intentionally causing an access violation
+#ifndef __LINUX__
 	__try
 	{
 
@@ -240,6 +312,9 @@ void RSP_Init()
 	{
 		RDRAMSize = testAddress;
 	}
+#else // !__LINUX__
+	RDRAMSize = 1024 * 1024 * 8;
+#endif // __LINUX__
 
 	RSP.DList = 0;
 	RSP.uc_start = RSP.uc_dstart = 0;

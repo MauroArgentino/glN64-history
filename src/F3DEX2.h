@@ -85,3 +85,4 @@ void F3DEX2_Special_3( u32 w0, u32 w1 );
 void F3DEX2_Quad( u32 w0, u32 w1 );
 void F3DEX2_Init();
 #endif
+

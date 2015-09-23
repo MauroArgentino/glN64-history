@@ -216,3 +216,4 @@ void S2DEX_Init();
 #define	S2DEX_RDPHALF_0			0xE4
 
 #endif
+

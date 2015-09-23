@@ -780,3 +780,4 @@ void GBI_Destroy();
 	G_MWO_bLIGHT_8		= ucode##_MWO_bLIGHT_8;
 
 #endif
+

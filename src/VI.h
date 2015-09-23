@@ -14,3 +14,4 @@ void VI_UpdateSize();
 void VI_UpdateScreen();
 
 #endif
+

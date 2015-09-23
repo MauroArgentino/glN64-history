@@ -362,3 +362,4 @@ void Combiner_Destroy();
 void Combiner_BeginTextureUpdate();
 void Combiner_EndTextureUpdate();
 #endif
+

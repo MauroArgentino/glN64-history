@@ -1,4 +1,8 @@
-#include <windows.h>
+#ifndef __LINUX__
+# include <windows.h>
+#else
+# include "winlnxdefs.h"
+#endif // __LINUX__
 #include "OpenGL.h"
 #include "FrameBuffer.h"
 #include "RSP.h"

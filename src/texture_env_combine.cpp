@@ -1,4 +1,9 @@
-#include <windows.h>
+#ifndef __LINUX__
+# include <windows.h>
+#else
+# include "winlnxdefs.h"
+# include <stdlib.h> // malloc()
+#endif
 #include "OpenGL.h"
 #include "Combiner.h"
 #include "texture_env_combine.h"

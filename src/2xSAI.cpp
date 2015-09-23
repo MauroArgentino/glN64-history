@@ -644,3 +644,4 @@ void _2xSaI8888( u32 *srcPtr, u32 *destPtr, u16 width, u16 height, s32 clampS, s
 		destPtr += destWidth;
 	}
 }
+

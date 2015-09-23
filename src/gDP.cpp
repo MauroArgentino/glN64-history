@@ -6,7 +6,7 @@
 #include "gSP.h"
 #include "Types.h"
 #include "Debug.h"
-#include "Convert.h"
+#include "convert.h"
 #include "OpenGL.h"
 #include "CRC.h"
 #include "FrameBuffer.h"
@@ -929,3 +929,4 @@ void gDPNoOp()
 	DebugMsg( DEBUG_HIGH | DEBUG_IGNORED, "gDPNoOp();\n" );
 #endif
 }
+

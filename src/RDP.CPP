@@ -3,6 +3,7 @@
 #include "GBI.h"
 #include "gDP.h"
 #include "Types.h"
+#include "Debug.h"
 
 void RDP_Unknown( u32 w0, u32 w1 )
 {
@@ -290,3 +291,4 @@ void RDP_Init()
 	GBI.cmd[G_TEXRECTFLIP]		= RDP_TexRectFlip;
 	GBI.cmd[G_TEXRECT]			= RDP_TexRect;
 }
+

@@ -1,4 +1,8 @@
-#include <windows.h>
+#ifndef __LINUX__
+# include <windows.h>
+#else
+# include "winlnxdefs.h"
+#endif // __LINUX__
 
 #define CRC32_POLYNOMIAL     0x04C11DB7
 

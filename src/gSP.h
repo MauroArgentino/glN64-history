@@ -150,3 +150,4 @@ void gSPObjSubMatrix( u32 mtx );
 void gSPSetDMAOffsets( u32 mtxoffset, u32 vtxoffset );
 void gSPSetVertexColorBase( u32 base );
 #endif
+

@@ -2494,3 +2494,4 @@ typedef void (APIENTRY * PFNGLMULTIDRAWELEMENTSSUNPROC) (GLenum mode, GLsizei *c
 #endif
 
 #endif /* __gl_ATI_h_ */
+

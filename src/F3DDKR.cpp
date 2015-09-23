@@ -119,3 +119,4 @@ void F3DDKR_Init()
 
 	gSPSetDMAOffsets( 0, 0 );
 }
+

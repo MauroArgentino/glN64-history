@@ -1,6 +1,14 @@
-#include <windows.h>
+#ifndef __LINUX__
+# include <windows.h>
+# include <GL/gl.h>
+# include "glext.h"
+#else // !__LINUX__
+# include "winlnxdefs.h"
+# include <GL/gl.h>
+# include <GL/glext.h>
+# include "SDL.h"
+#endif // __LINUX__
 #include <math.h>
-#include <gl/gl.h>
 #include <stdio.h>
 #include "glN64.h"
 #include "OpenGL.h"
@@ -14,6 +22,7 @@
 
 GLInfo OGL;
 
+#ifndef __LINUX__
 // NV_register_combiners functions
 PFNGLCOMBINERPARAMETERFVNVPROC glCombinerParameterfvNV;
 PFNGLCOMBINERPARAMETERFNVPROC glCombinerParameterfNV;
@@ -59,6 +68,7 @@ PFNGLSECONDARYCOLOR3UIVEXTPROC glSecondaryColor3uivEXT;
 PFNGLSECONDARYCOLOR3USEXTPROC glSecondaryColor3usEXT;
 PFNGLSECONDARYCOLOR3USVEXTPROC glSecondaryColor3usvEXT;
 PFNGLSECONDARYCOLORPOINTEREXTPROC glSecondaryColorPointerEXT;
+#endif // !__LINUX__
 
 BOOL isExtensionSupported( const char *extension )
 {
@@ -94,6 +104,7 @@ void OGL_InitExtensions()
 {
 	if (OGL.NV_register_combiners = isExtensionSupported( "GL_NV_register_combiners" ))
 	{
+#ifndef __LINUX__
 		glCombinerParameterfvNV = (PFNGLCOMBINERPARAMETERFVNVPROC)wglGetProcAddress( "glCombinerParameterfvNV" );
 		glCombinerParameterfNV = (PFNGLCOMBINERPARAMETERFNVPROC)wglGetProcAddress( "glCombinerParameterfNV" );
 		glCombinerParameterivNV = (PFNGLCOMBINERPARAMETERIVNVPROC)wglGetProcAddress( "glCombinerParameterivNV" );
@@ -107,14 +118,17 @@ void OGL_InitExtensions()
 		glGetCombinerOutputParameterivNV = (PFNGLGETCOMBINEROUTPUTPARAMETERIVNVPROC)wglGetProcAddress( "glGetCombinerOutputParameterivNV" );
 		glGetFinalCombinerInputParameterfvNV = (PFNGLGETFINALCOMBINERINPUTPARAMETERFVNVPROC)wglGetProcAddress( "glGetFinalCombinerInputParameterfvNV" );
 		glGetFinalCombinerInputParameterivNV = (PFNGLGETFINALCOMBINERINPUTPARAMETERIVNVPROC)wglGetProcAddress( "glGetFinalCombinerInputParameterivNV" );
+#endif // !__LINUX__
 		glGetIntegerv( GL_MAX_GENERAL_COMBINERS_NV, &OGL.maxGeneralCombiners );
 	}
 
 	if (OGL.ARB_multitexture = isExtensionSupported( "GL_ARB_multitexture" ))
 	{
+#ifndef __LINUX__
 		glActiveTextureARB			= (PFNGLACTIVETEXTUREARBPROC)wglGetProcAddress( "glActiveTextureARB" );
 		glClientActiveTextureARB	= (PFNGLCLIENTACTIVETEXTUREARBPROC)wglGetProcAddress( "glClientActiveTextureARB" );
 		glMultiTexCoord2fARB		= (PFNGLMULTITEXCOORD2FARBPROC)wglGetProcAddress( "glMultiTexCoord2fARB" );
+#endif // !__LINUX__
 
 		glGetIntegerv( GL_MAX_TEXTURE_UNITS_ARB, &OGL.maxTextureUnits );
 		OGL.maxTextureUnits = min( 8, OGL.maxTextureUnits ); // The plugin only supports 8, and 4 is really enough
@@ -122,15 +136,18 @@ void OGL_InitExtensions()
 
 	if (OGL.EXT_fog_coord = isExtensionSupported( "GL_EXT_fog_coord" ))
 	{
+#ifndef __LINUX__
 		glFogCoordfEXT = (PFNGLFOGCOORDFEXTPROC)wglGetProcAddress( "glFogCoordfEXT" );
 		glFogCoordfvEXT = (PFNGLFOGCOORDFVEXTPROC)wglGetProcAddress( "glFogCoordfvEXT" );
 		glFogCoorddEXT = (PFNGLFOGCOORDDEXTPROC)wglGetProcAddress( "glFogCoorddEXT" );
 		glFogCoorddvEXT = (PFNGLFOGCOORDDVEXTPROC)wglGetProcAddress( "glFogCoorddvEXT" );
 		glFogCoordPointerEXT = (PFNGLFOGCOORDPOINTEREXTPROC)wglGetProcAddress( "glFogCoordPointerEXT" );
+#endif // !__LINUX__
 	}
 
 	if (OGL.EXT_secondary_color = isExtensionSupported( "GL_EXT_secondary_color" ))
 	{
+#ifndef __LINUX__
 		glSecondaryColor3bEXT = (PFNGLSECONDARYCOLOR3BEXTPROC)wglGetProcAddress( "glSecondaryColor3bEXT" );
 		glSecondaryColor3bvEXT = (PFNGLSECONDARYCOLOR3BVEXTPROC)wglGetProcAddress( "glSecondaryColor3bvEXT" );
 		glSecondaryColor3dEXT = (PFNGLSECONDARYCOLOR3DEXTPROC)wglGetProcAddress( "glSecondaryColor3dEXT" );
@@ -148,6 +165,7 @@ void OGL_InitExtensions()
 		glSecondaryColor3usEXT = (PFNGLSECONDARYCOLOR3USEXTPROC)wglGetProcAddress( "glSecondaryColor3usEXT" );
 		glSecondaryColor3usvEXT = (PFNGLSECONDARYCOLOR3USVEXTPROC)wglGetProcAddress( "glSecondaryColor3usvEXT" );
 		glSecondaryColorPointerEXT = (PFNGLSECONDARYCOLORPOINTEREXTPROC)wglGetProcAddress( "glSecondaryColorPointerEXT" );
+#endif // !__LINUX__
 	}
 
 	OGL.ARB_texture_env_combine = isExtensionSupported( "GL_ARB_texture_env_combine" );
@@ -226,7 +244,11 @@ void OGL_InitStates()
 											((i > (rand() >> 10)) << 0);
 	}
 
+#ifndef __LINUX__
 	SwapBuffers( wglGetCurrentDC() );
+#else
+	OGL_SwapBuffers();
+#endif
 }
 
 void OGL_UpdateScale()
@@ -237,6 +259,7 @@ void OGL_UpdateScale()
 
 void OGL_ResizeWindow()
 {
+#ifndef __LINUX__
 	RECT	windowRect, statusRect, toolRect;
 
 	if (OGL.fullscreen)
@@ -269,31 +292,34 @@ void OGL_ResizeWindow()
 		SetWindowPos( hWnd, NULL, 0, 0,	windowRect.right - windowRect.left + 1,
 						windowRect.bottom - windowRect.top + 1 + toolRect.bottom - toolRect.top + 1, SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOMOVE );
 	}
+#else // !__LINUX__
+#endif // __LINUX__
 }
 
 bool OGL_Start()
 {
+#ifndef __LINUX__
 	int		pixelFormat;
 
-	PIXELFORMATDESCRIPTOR pfd = { 
-		sizeof(PIXELFORMATDESCRIPTOR),    // size of this pfd 
-		1,                                // version number 
-		PFD_DRAW_TO_WINDOW |              // support window 
-		PFD_SUPPORT_OPENGL |              // support OpenGL 
-		PFD_DOUBLEBUFFER,                 // double buffered 
-		PFD_TYPE_RGBA,                    // RGBA type 
-		32,								  // color depth 
-		0, 0, 0, 0, 0, 0,                 // color bits ignored 
-		0,                                // no alpha buffer 
-		0,                                // shift bit ignored 
-		0,                                // no accumulation buffer 
-		0, 0, 0, 0,                       // accum bits ignored 
-		32,								  // z-buffer     
-		0,                                // no stencil buffer 
-		0,                                // no auxiliary buffer 
-		PFD_MAIN_PLANE,                   // main layer 
-		0,                                // reserved 
-		0, 0, 0                           // layer masks ignored 
+	PIXELFORMATDESCRIPTOR pfd = {
+		sizeof(PIXELFORMATDESCRIPTOR),    // size of this pfd
+		1,                                // version number
+		PFD_DRAW_TO_WINDOW |              // support window
+		PFD_SUPPORT_OPENGL |              // support OpenGL
+		PFD_DOUBLEBUFFER,                 // double buffered
+		PFD_TYPE_RGBA,                    // RGBA type
+		32,								  // color depth
+		0, 0, 0, 0, 0, 0,                 // color bits ignored
+		0,                                // no alpha buffer
+		0,                                // shift bit ignored
+		0,                                // no accumulation buffer
+		0, 0, 0, 0,                       // accum bits ignored
+		32,								  // z-buffer
+		0,                                // no stencil buffer
+		0,                                // no auxiliary buffer
+		PFD_MAIN_PLANE,                   // main layer
+		0,                                // reserved
+		0, 0, 0                           // layer masks ignored
 	};
 
 	if ((OGL.hDC = GetDC( hWnd )) == NULL)
@@ -329,6 +355,67 @@ bool OGL_Start()
 		OGL_Stop();
 		return FALSE;
 	}
+#else // !__LINUX__
+	// init sdl & gl
+	const SDL_VideoInfo *videoInfo;
+	Uint32 videoFlags = 0;
+
+	if (OGL.fullscreen)
+	{
+		OGL.width = OGL.fullscreenWidth;
+		OGL.height = OGL.fullscreenHeight;
+	}
+	else
+	{
+		OGL.width = OGL.windowedWidth;
+		OGL.height = OGL.windowedHeight;
+	}
+
+
+	/* Initialize SDL */
+	printf( "[glN64]: (II) Initializing SDL video subsystem...\n" );
+	if (SDL_InitSubSystem( SDL_INIT_VIDEO ) == -1)
+	{
+		printf( "[glN64]: (EE) Error initializing SDL video subsystem: %s\n", SDL_GetError() );
+		return FALSE;
+	}
+
+	/* Video Info */
+	printf( "[glN64]: (II) Getting video info...\n" );
+	if (!(videoInfo = SDL_GetVideoInfo()))
+	{
+		printf( "[glN64]: (EE) Video query failed: %s\n", SDL_GetError() );
+		SDL_QuitSubSystem( SDL_INIT_VIDEO );
+		return FALSE;
+	}
+
+	/* Set the video mode */
+	videoFlags |= SDL_OPENGL | SDL_GL_DOUBLEBUFFER | SDL_HWPALETTE;
+
+	if (videoInfo->hw_available)
+		videoFlags |= SDL_HWSURFACE;
+	else
+		videoFlags |= SDL_SWSURFACE;
+
+	if (videoInfo->blit_hw)
+		videoFlags |= SDL_HWACCEL;
+
+	SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER, 1 );
+/*	SDL_GL_SetAttribute( SDL_GL_RED_SIZE, 5 );
+	SDL_GL_SetAttribute( SDL_GL_GREEN_SIZE, 5 );
+	SDL_GL_SetAttribute( SDL_GL_BLUE_SIZE, 5 );*/
+	SDL_GL_SetAttribute( SDL_GL_DEPTH_SIZE, 16 );	// 32 bit z-buffer
+
+	printf( "[glN64]: (II) Setting video mode %dx%d...\n", OGL.width, OGL.height );
+	if (!(OGL.hScreen = SDL_SetVideoMode( OGL.width, OGL.height, 0, videoFlags )))
+	{
+		printf( "[glN64]: (EE) Error setting videomode %dx%d: %s\n", OGL.width, OGL.height, SDL_GetError() );
+		SDL_QuitSubSystem( SDL_INIT_VIDEO );
+		return FALSE;
+	}
+
+	SDL_WM_SetCaption( pluginName, pluginName );
+#endif // __LINUX__
 
 	OGL_InitExtensions();
 	OGL_InitStates();
@@ -349,6 +436,7 @@ void OGL_Stop()
 	FrameBuffer_Destroy();
 	TextureCache_Destroy();
 
+#ifndef __LINUX__
 	wglMakeCurrent( NULL, NULL );
 
 	if (OGL.hRC)
@@ -362,6 +450,10 @@ void OGL_Stop()
 		ReleaseDC( hWnd, OGL.hDC );
 		OGL.hDC = NULL;
 	}
+#else // !__LINUX__
+	SDL_QuitSubSystem( SDL_INIT_VIDEO );
+	OGL.hScreen = NULL;
+#endif // __LINUX__
 }
 
 void OGL_UpdateCullFace()
@@ -381,8 +473,8 @@ void OGL_UpdateCullFace()
 
 void OGL_UpdateViewport()
 {
-	glViewport( gSP.viewport.x * OGL.scaleX, (VI.height - (gSP.viewport.y + gSP.viewport.height)) * OGL.scaleY + OGL.heightOffset, 
-		gSP.viewport.width * OGL.scaleX, gSP.viewport.height * OGL.scaleY ); 
+	glViewport( gSP.viewport.x * OGL.scaleX, (VI.height - (gSP.viewport.y + gSP.viewport.height)) * OGL.scaleY + OGL.heightOffset,
+	            gSP.viewport.width * OGL.scaleX, gSP.viewport.height * OGL.scaleY );
 	glDepthRange( 0.0f, 1.0f );//gSP.viewport.nearz, gSP.viewport.farz );
 }
 
@@ -668,7 +760,7 @@ void OGL_DrawTriangles()
 	}
 
 	glDrawArrays( GL_TRIANGLES, 0, OGL.numVertices );
-	OGL.numTriangles = OGL.numVertices = 0;  
+	OGL.numTriangles = OGL.numVertices = 0;
 }
 
 void OGL_DrawLine( SPVertex *vertices, int v0, int v1, float width )
@@ -906,22 +998,30 @@ void OGL_DrawTexturedRect( float ulx, float uly, float lrx, float lry, float uls
 
 void OGL_ClearDepthBuffer()
 {
+	glDisable( GL_SCISSOR_TEST );
+
 	OGL_UpdateStates();
 	glDepthMask( TRUE );
-//	glEnable( GL_DEPTH_TEST );
 	glClear( GL_DEPTH_BUFFER_BIT );
 
-	OGL_UpdateDepthUpdate();	
+	OGL_UpdateDepthUpdate();
+
+	glEnable( GL_SCISSOR_TEST );
 }
 
 void OGL_ClearColorBuffer( float *color )
 {
+	glDisable( GL_SCISSOR_TEST );
+
 	glClearColor( color[0], color[1], color[2], color[3] );
 	glClear( GL_COLOR_BUFFER_BIT );
+
+	glEnable( GL_SCISSOR_TEST );
 }
 
 void OGL_SaveScreenshot()
 {
+#ifndef __LINUX__
 	BITMAPFILEHEADER fileHeader;
 	BITMAPINFOHEADER infoHeader;
 	HANDLE hBitmapFile;
@@ -974,4 +1074,53 @@ void OGL_SaveScreenshot()
 
  	CloseHandle( hBitmapFile );
 	free( pixelData );
+#else // !__LINUX__
+#endif // __LINUX__
 }
+
+void OGL_ReadScreen( void **dest, long *width, long *height )
+{
+	*width = OGL.width;
+	*height = OGL.height;
+
+	*dest = malloc( OGL.height * OGL.width * 3 );
+	if (*dest == 0)
+		return;
+
+	GLint oldMode;
+	glGetIntegerv( GL_READ_BUFFER, &oldMode );
+	glReadBuffer( GL_FRONT );
+//	glReadBuffer( GL_BACK );
+	glReadPixels( 0, 0, OGL.width, OGL.height,
+	              GL_BGR, GL_UNSIGNED_BYTE, *dest );
+	glReadBuffer( oldMode );
+}
+
+#ifdef __LINUX__
+void
+OGL_SwapBuffers()
+{
+	static int frames[5] = { 0, 0, 0, 0, 0 };
+	static int framesIndex = 0;
+	static Uint32 lastTicks = 0;
+	Uint32 ticks = SDL_GetTicks();
+
+	frames[framesIndex]++;
+	if (ticks >= (lastTicks + 1000))
+	{
+		char caption[500];
+		float fps = 0.0;
+		for (int i = 0; i < 5; i++)
+			fps += frames[i];
+		fps /= 5.0;
+		snprintf( caption, 500, "%s - %.2f fps", pluginName, fps );
+		SDL_WM_SetCaption( caption, pluginName );
+		framesIndex = (framesIndex + 1) % 5;
+		frames[framesIndex] = 0;
+		lastTicks = ticks;
+	}
+
+	SDL_GL_SwapBuffers();
+}
+
+#endif // __LINUX__

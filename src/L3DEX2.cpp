@@ -58,3 +58,4 @@ void L3DEX2_Init()
 //	GBI_SetGBI( G_QUAD,					F3DEX2_QUAD,				F3DEX2_Quad );
 	GBI_SetGBI( G_LINE3D,				L3DEX2_LINE3D,				L3DEX2_Line3D );
 }
+

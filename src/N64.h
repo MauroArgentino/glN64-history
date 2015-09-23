@@ -42,3 +42,4 @@ extern u64 TMEM[512];
 extern u32 RDRAMSize;
 
 #endif
+

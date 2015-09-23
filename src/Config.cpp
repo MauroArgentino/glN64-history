@@ -200,7 +200,8 @@ void UpdateFullscreenConfig( HWND hWndDlg )
 	SendDlgItemMessage( hWndDlg, IDC_FULLSCREENBITDEPTH, CB_RESETCONTENT, 0, 0 );
 	while (EnumDisplaySettings( NULL, i, &deviceMode ) != 0)
 	{
-		for (int j = 0; j < fullscreen.numBitDepths; j++)
+		int j = 0;
+		for (; j < fullscreen.numBitDepths; j++)
 		{
 			if (deviceMode.dmBitsPerPel == fullscreen.bitDepth[j])
 				break;
@@ -228,7 +229,8 @@ void UpdateFullscreenConfig( HWND hWndDlg )
 	SendDlgItemMessage( hWndDlg, IDC_FULLSCREENRES, CB_RESETCONTENT, 0, 0 );
 	while (EnumDisplaySettings( NULL, i, &deviceMode ) != 0)
 	{
-		for (int j = 0; j < fullscreen.numResolutions; j++)
+		int j = 0;
+		for (; j < fullscreen.numResolutions; j++)
 		{
 			if ((deviceMode.dmPelsWidth == fullscreen.resolution[j].width) &&
 				(deviceMode.dmPelsHeight == fullscreen.resolution[j].height))
@@ -261,7 +263,8 @@ void UpdateFullscreenConfig( HWND hWndDlg )
 	SendDlgItemMessage( hWndDlg, IDC_FULLSCREENREFRESH, CB_RESETCONTENT, 0, 0 );
 	while (EnumDisplaySettings( NULL, i, &deviceMode ) != 0)
 	{
-		for (int j = 0; j < fullscreen.numRefreshRates; j++)
+		int j = 0;
+		for (; j < fullscreen.numRefreshRates; j++)
 		{
 			if ((deviceMode.dmDisplayFrequency == fullscreen.refreshRate[j]))
 				break;

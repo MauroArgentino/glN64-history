@@ -20,3 +20,4 @@ void Update_texture_env_Colors( TexEnv *texEnv );
 void Uninit_texture_env();
 
 #endif
+

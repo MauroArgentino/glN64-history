@@ -56,3 +56,4 @@ void F3DPD_Init()
 
 	gSPSetDMAOffsets( 0, 0 );
 }
+

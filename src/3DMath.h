@@ -1,8 +1,11 @@
 #ifndef _3DMATH_H
 #define _3DMATH_H
 
+#undef X86_ASM
+
 inline void CopyMatrix( float m0[4][4], float m1[4][4] )
 {
+#ifndef __LINUX__
 	__asm {
 		mov		esi, [m1]
 		mov		edi, [m0]
@@ -23,7 +26,7 @@ inline void CopyMatrix( float m0[4][4], float m1[4][4] )
 		mov		eax, dword ptr [esi+18h]
 		mov		dword ptr [edi+18h], eax
 		mov		eax, dword ptr [esi+1Ch]
-		mov		dword ptr [edi+1Ch], eax	
+		mov		dword ptr [edi+1Ch], eax
 
 		mov		eax, dword ptr [esi+20h]
 		mov		dword ptr [edi+20h], eax
@@ -43,10 +46,58 @@ inline void CopyMatrix( float m0[4][4], float m1[4][4] )
 		mov		eax, dword ptr [esi+3Ch]
 		mov		dword ptr [edi+3Ch], eax
 	}
+#else
+# ifdef X86_ASM
+	__asm__ __volatile__(
+	".intel_syntax noprefix"				"\n\t"
+	"	mov		eax, dword ptr [esi+0x00]"	"\n\t"
+	"	mov		dword ptr [edi+0x00], eax"	"\n\t"
+	"	mov		eax, dword ptr [esi+0x04]"	"\n\t"
+	"	mov		dword ptr [edi+0x04], eax"	"\n\t"
+	"	mov		eax, dword ptr [esi+0x08]"	"\n\t"
+	"	mov		dword ptr [edi+0x08], eax"	"\n\t"
+	"	mov		eax, dword ptr [esi+0x0C]"	"\n\t"
+	"	mov		dword ptr [edi+0x0C], eax"	"\n\t"
+
+	"	mov		eax, dword ptr [esi+0x10]"	"\n\t"
+	"	mov		dword ptr [edi+0x10], eax"	"\n\t"
+	"	mov		eax, dword ptr [esi+0x14]"	"\n\t"
+	"	mov		dword ptr [edi+0x14], eax"	"\n\t"
+	"	mov		eax, dword ptr [esi+0x18]"	"\n\t"
+	"	mov		dword ptr [edi+0x18], eax"	"\n\t"
+	"	mov		eax, dword ptr [esi+0x1C]"	"\n\t"
+	"	mov		dword ptr [edi+0x1C], eax"	"\n\t"
+
+	"	mov		eax, dword ptr [esi+0x20]"	"\n\t"
+	"	mov		dword ptr [edi+0x20], eax"	"\n\t"
+	"	mov		eax, dword ptr [esi+0x24]"	"\n\t"
+	"	mov		dword ptr [edi+0x24], eax"	"\n\t"
+	"	mov		eax, dword ptr [esi+0x28]"	"\n\t"
+	"	mov		dword ptr [edi+0x28], eax"	"\n\t"
+	"	mov		eax, dword ptr [esi+0x2C]"	"\n\t"
+	"	mov		dword ptr [edi+0x2C], eax"	"\n\t"
+
+	"	mov		eax, dword ptr [esi+0x30]"	"\n\t"
+	"	mov		dword ptr [edi+0x30], eax"	"\n\t"
+	"	mov		eax, dword ptr [esi+0x34]"	"\n\t"
+	"	mov		dword ptr [edi+0x34], eax"	"\n\t"
+	"	mov		eax, dword ptr [esi+0x38]"	"\n\t"
+	"	mov		dword ptr [edi+0x38], eax"	"\n\t"
+	"	mov		eax, dword ptr [esi+0x3C]"	"\n\t"
+	"	mov		dword ptr [edi+0x3C], eax"	"\n\t"
+	".att_syntax prefix"					"\n\t"
+	: /* no output */
+	: "S"(m1), "D"(m0)
+	: "%eax", "memory" );
+# else // X86_ASM
+	memcpy( m0, m1, 16 * sizeof( float ) );
+# endif // !X86_ASM
+#endif
 }
 
 inline void MultMatrix( float m0[4][4], float m1[4][4] )
 {
+#ifndef __LINUX__
  	__asm {
 		mov		esi, dword ptr [m0]
 		mov		edi, dword ptr [m1]
@@ -116,10 +167,95 @@ MultMatrix_Loop:
 		cmp		cx, 0
 		ja		MultMatrix_Loop
 	}
+#else // !__LINUX__
+# ifdef X86_ASM
+	__asm__ __volatile__(
+	".intel_syntax noprefix"			"\n\t"
+	"MultMatrix_Loop:"					"\n\t"
+	"	fld		dword ptr [esi+0x30]"	"\n\t"
+	"	fld		dword ptr [esi+0x20]"	"\n\t"
+	"	fld		dword ptr [esi+0x10]"	"\n\t"
+	"	fld		dword ptr [esi]"		"\n\t"
+
+	"	fld		dword ptr [edi]"		"\n\t"
+	"	fmul	ST, ST(1)"				"\n\t"
+	"	fld		dword ptr [edi+0x04]"	"\n\t"
+	"	fmul	ST, ST(3)"				"\n\t"
+	"	fadd"							"\n\t"
+	"	fld		dword ptr [edi+0x08]"	"\n\t"
+	"	fmul	ST, ST(4)"				"\n\t"
+	"	fadd"							"\n\t"
+	"	fld		dword ptr [edi+0x0C]"	"\n\t"
+	"	fmul	ST, ST(5)"				"\n\t"
+	"	fadd"							"\n\t"
+	"	fstp	dword ptr [esi]"		"\n\t"
+
+	"	fld		dword ptr [edi+0x10]"	"\n\t"
+	"	fmul	ST, ST(1)"				"\n\t"
+	"	fld		dword ptr [edi+0x14]"	"\n\t"
+	"	fmul	ST, ST(3)"				"\n\t"
+	"	fadd"							"\n\t"
+	"	fld		dword ptr [edi+0x18]"	"\n\t"
+	"	fmul	ST, ST(4)"				"\n\t"
+	"	fadd"							"\n\t"
+	"	fld		dword ptr [edi+0x1C]"	"\n\t"
+	"	fmul	ST, ST(5)"				"\n\t"
+	"	fadd"							"\n\t"
+	"	fstp	dword ptr [esi+0x10]"	"\n\t"
+
+	"	fld		dword ptr [edi+0x20]"	"\n\t"
+	"	fmul	ST, ST(1)"				"\n\t"
+	"	fld		dword ptr [edi+0x24]"	"\n\t"
+	"	fmul	ST, ST(3)"				"\n\t"
+	"	fadd"							"\n\t"
+	"	fld		dword ptr [edi+0x28]"	"\n\t"
+	"	fmul	ST, ST(4)"				"\n\t"
+	"	fadd"							"\n\t"
+	"	fld		dword ptr [edi+0x2C]"	"\n\t"
+	"	fmul	ST, ST(5)"				"\n\t"
+	"	fadd"							"\n\t"
+	"	fstp	dword ptr [esi+0x20]"	"\n\t"
+
+	"	fld		dword ptr [edi+0x30]"	"\n\t"
+	"	fmulp	ST(1), ST"				"\n\t"
+	"	fld		dword ptr [edi+0x34]"	"\n\t"
+	"	fmulp	ST(2), ST"				"\n\t"
+	"	fadd"							"\n\t"
+	"	fld		dword ptr [edi+0x38]"	"\n\t"
+	"	fmulp	ST(2), ST"				"\n\t"
+	"	fadd"							"\n\t"
+	"	fld		dword ptr [edi+0x3C]"	"\n\t"
+	"	fmulp	ST(2), ST"				"\n\t"
+	"	fadd"							"\n\t"
+	"	fstp	dword ptr [esi+0x30]"	"\n\t"
+
+	"	add		esi, 4"					"\n\t"
+	"	dec		cx"						"\n\t"
+	"	cmp		cx, 0"					"\n\t"
+	"	ja		MultMatrix_Loop"		"\n\t"
+	".att_syntax prefix"				"\n\t"
+	: /* no output */
+	: "S"(m0), "D"(m1), "c"(4)
+	: "memory" );
+# else // X86_ASM
+	int i;
+	float dst[4][4];
+
+	for (i = 0; i < 4; i++)
+	{
+		dst[0][i] = m0[0][i]*m1[0][0] + m0[1][i]*m1[0][1] + m0[2][i]*m1[0][2] + m0[3][i]*m1[0][3];
+		dst[1][i] = m0[0][i]*m1[1][0] + m0[1][i]*m1[1][1] + m0[2][i]*m1[1][2] + m0[3][i]*m1[1][3];
+		dst[2][i] = m0[0][i]*m1[2][0] + m0[1][i]*m1[2][1] + m0[2][i]*m1[2][2] + m0[3][i]*m1[2][3];
+		dst[3][i] = m0[3][i]*m1[3][3] + m0[2][i]*m1[3][2] + m0[1][i]*m1[3][1] + m0[0][i]*m1[3][0];
+	}
+	memcpy( m0, dst, sizeof(float) * 16 );
+# endif // !X86_ASM
+#endif // __LINUX__
 }
 
 inline void Transpose3x3Matrix( float mtx[4][4] )
 {
+#ifndef __LINUX__
 	__asm
 	{
 		mov		esi, [mtx]
@@ -139,10 +275,49 @@ inline void Transpose3x3Matrix( float mtx[4][4] )
 		mov		dword ptr [esi+18h], ebx
 		mov		dword ptr [esi+24h], eax
 	}
+#else // !__LINUX__
+# ifdef X86_ASM
+	__asm__ __volatile__(
+	".intel_syntax noprefix"				"\n\t"
+	"	mov		eax, dword ptr [esi+0x04]"	"\n\t"
+	"	mov		ebx, dword ptr [esi+0x10]"	"\n\t"
+	"	mov		dword ptr [esi+0x04], ebx"	"\n\t"
+	"	mov		dword ptr [esi+0x10], eax"	"\n\t"
+
+	"	mov		eax, dword ptr [esi+0x08]"	"\n\t"
+	"	mov		ebx, dword ptr [esi+0x20]"	"\n\t"
+	"	mov		dword ptr [esi+0x08], ebx"	"\n\t"
+	"	mov		dword ptr [esi+0x20], eax"	"\n\t"
+
+	"	mov		eax, dword ptr [esi+0x18]"	"\n\t"
+	"	mov		ebx, dword ptr [esi+0x24]"	"\n\t"
+	"	mov		dword ptr [esi+0x18], ebx"	"\n\t"
+	"	mov		dword ptr [esi+0x24], eax"	"\n\t"
+	".att_syntax prefix"					"\n\t"
+	: /* no output */
+	: "S"(mtx)
+	: "%eax", "%ebx", "memory" );
+# else // X86_ASM
+	float tmp;
+
+	tmp = mtx[0][1];
+	mtx[0][1] = mtx[1][0];
+	mtx[1][0] = tmp;
+
+	tmp = mtx[0][2];
+	mtx[0][2] = mtx[2][0];
+	mtx[2][0] = tmp;
+
+	tmp = mtx[1][2];
+	mtx[1][2] = mtx[2][1];
+	mtx[2][1] = tmp;
+# endif // !X86_ASM
+#endif // __LINUX__
 }
 
 inline void TransformVertex( float vtx[4], float mtx[4][4] )//, float perspNorm )
 {
+#ifndef __LINUX__
 	__asm {
 		mov		esi, dword ptr [vtx]
 		mov		ebx, dword ptr [mtx]
@@ -199,10 +374,99 @@ inline void TransformVertex( float vtx[4], float mtx[4][4] )//, float perspNorm 
 //		fmul	dword ptr [perspNorm]	//																	(vtx2*mtx23+vtx1*mtx13+vtx0*mtx03+mtx33)*perspNorm
 		fstp	dword ptr [esi+0Ch]		//
 	}
+#else // !__LINUX__
+# ifdef X86_ASM
+	__asm__ __volatile__(
+	".intel_syntax noprefix"			"\n\t"
+	"	fld		dword ptr [esi+8]"		"\n\t"
+	"	fld		dword ptr [esi+4]"		"\n\t"
+	"	fld		dword ptr [esi]"		"\n\t"
+
+	"	fld		dword ptr [ebx]"		"\n\t"
+	"	fmul	ST, ST(1)"				"\n\t"
+	"	fld		dword ptr [ebx+0x10]"	"\n\t"
+	"	fmul	ST, ST(3)"				"\n\t"
+	"	fadd"							"\n\t"
+	"	fld		dword ptr [ebx+0x20]"	"\n\t"
+	"	fmul	ST, ST(4)"				"\n\t"
+	"	fadd"							"\n\t"
+	"	fadd	dword ptr [ebx+0x30]"	"\n\t"
+//	"	fmul	dword ptr [perspNorm]"	"\n\t"
+	"	fstp	dword ptr [esi]"		"\n\t"
+
+	"	fld		dword ptr [ebx+0x04]"	"\n\t"
+	"	fmul	ST, ST(1)"				"\n\t"
+	"	fld		dword ptr [ebx+0x14]"	"\n\t"
+	"	fmul	ST, ST(3)"				"\n\t"
+	"	fadd"							"\n\t"
+	"	fld		dword ptr [ebx+0x24]"	"\n\t"
+	"	fmul	ST, ST(4)"				"\n\t"
+	"	fadd"							"\n\t"
+	"	fadd	dword ptr [ebx+0x34]"	"\n\t"
+//	"	fmul	dword ptr [perspNorm]"	"\n\t"
+	"	fstp	dword ptr [esi+0x04]"	"\n\t"
+
+	"	fld		dword ptr [ebx+0x08]"	"\n\t"
+	"	fmul	ST, ST(1)"				"\n\t"
+	"	fld		dword ptr [ebx+0x18]"	"\n\t"
+	"	fmul	ST, ST(3)"				"\n\t"
+	"	fadd"							"\n\t"
+	"	fld		dword ptr [ebx+0x28]"	"\n\t"
+	"	fmul	ST, ST(4)"				"\n\t"
+	"	fadd"							"\n\t"
+	"	fadd	dword ptr [ebx+0x38]"	"\n\t"
+//	"	fmul	dword ptr [perspNorm]"	"\n\t"
+	"	fstp	dword ptr [esi+0x08]"	"\n\t"
+
+	"	fld		dword ptr [ebx+0x0C]"	"\n\t"
+	"	fmulp	ST(1), ST"				"\n\t"
+	"	fld		dword ptr [ebx+0x1C]"	"\n\t"
+	"	fmulp	ST(2), ST"				"\n\t"
+	"	fadd"							"\n\t"
+	"	fld		dword ptr [ebx+0x2C]"	"\n\t"
+	"	fmulp	ST(2), ST"				"\n\t"
+	"	fadd"							"\n\t"
+	"	fadd	dword ptr [ebx+0x3C]"	"\n\t"
+//	"	fmul	dword ptr [perspNorm]"	"\n\t"
+	"	fstp	dword ptr [esi+0x0C]"	"\n\t"
+	".att_syntax prefix"				"\n\t"
+	: /* no output */
+	: "S"(vtx), "b"(mtx)
+	: "memory" );
+# else // X86_ASM
+	float x, y, z, w;
+	x = vtx[0];
+	y = vtx[1];
+	z = vtx[2];
+	w = vtx[3];
+
+	vtx[0] = x * mtx[0][0] +
+	         y * mtx[1][0] +
+	         z * mtx[2][0];
+
+	vtx[1] = x * mtx[0][1] +
+	         y * mtx[1][1] +
+	         z * mtx[2][1];
+
+	vtx[2] = x * mtx[0][2] +
+	         y * mtx[1][2] +
+	         z * mtx[2][2];
+
+	vtx[3] = x * mtx[0][3] +
+	         y * mtx[1][3] +
+	         z * mtx[2][3];
+
+	vtx[0] += mtx[3][0];
+	vtx[1] += mtx[3][1];
+	vtx[2] += mtx[3][2];
+	vtx[3] += mtx[3][3];
+# endif // X86_ASM
+#endif // __LINUX__
 }
 
 inline void TransformVector( float vec[3], float mtx[4][4] )
 {
+#ifndef __LINUX__
 	__asm {
 		mov		esi, dword ptr [vec]
 		mov		ebx, dword ptr [mtx]
@@ -241,10 +505,64 @@ inline void TransformVector( float vec[3], float mtx[4][4] )
 		fadd							//																	vec2*mtx22+vec1*mtx12+vec0*mtx02
 		fstp	dword ptr [esi+08h]		//
 	}
+#else // !__LINUX__
+# ifdef X86_ASM
+	__asm__ __volatile__(
+	".intel_syntax noprefix"			"\n\t"
+	"	fld		dword ptr [esi+8]"		"\n\t"
+	"	fld		dword ptr [esi+4]"		"\n\t"
+	"	fld		dword ptr [esi]"		"\n\t"
+
+	"	fld		dword ptr [ebx]"		"\n\t"
+	"	fmul	ST, ST(1)"				"\n\t"
+	"	fld		dword ptr [ebx+0x10]"	"\n\t"
+	"	fmul	ST, ST(3)"				"\n\t"
+	"	fadd"							"\n\t"
+	"	fld		dword ptr [ebx+0x20]"	"\n\t"
+	"	fmul	ST, ST(4)"				"\n\t"
+	"	fadd"							"\n\t"
+	"	fstp	dword ptr [esi]"		"\n\t"
+
+	"	fld		dword ptr [ebx+0x04]"	"\n\t"
+	"	fmul	ST, ST(1)"				"\n\t"
+	"	fld		dword ptr [ebx+0x14]"	"\n\t"
+	"	fmul	ST, ST(3)"				"\n\t"
+	"	fadd"							"\n\t"
+	"	fld		dword ptr [ebx+0x24]"	"\n\t"
+	"	fmul	ST, ST(4)"				"\n\t"
+	"	fadd"							"\n\t"
+	"	fstp	dword ptr [esi+0x04]"	"\n\t"
+
+	"	fld		dword ptr [ebx+0x08]"	"\n\t"
+	"	fmulp	ST(1), ST"				"\n\t"
+	"	fld		dword ptr [ebx+0x18]"	"\n\t"
+	"	fmulp	ST(2), ST"				"\n\t"
+	"	fadd"							"\n\t"
+	"	fld		dword ptr [ebx+0x28]"	"\n\t"
+	"	fmulp	ST(2), ST"				"\n\t"
+	"	fadd"							"\n\t"
+	"	fstp	dword ptr [esi+0x08]"	"\n\t"
+	".att_syntax prefix"				"\n\t"
+	: /* no output */
+	: "S"(vec), "b"(mtx)
+	: "memory" );
+# else // X86_ASM
+	vec[0] = mtx[0][0] * vec[0]
+		   + mtx[1][0] * vec[1]
+		   + mtx[2][0] * vec[2];
+	vec[1] = mtx[0][1] * vec[0]
+		   + mtx[1][1] * vec[1]
+		   + mtx[2][1] * vec[2];
+	vec[2] = mtx[0][2] * vec[0]
+		   + mtx[1][2] * vec[1]
+		   + mtx[2][2] * vec[2];
+# endif // !X86_ASM
+#endif // __LINUX__
 }
 
 inline void Normalize( float v[3] )
 {
+#ifndef __LINUX__
 	__asm {
 		mov		esi, dword ptr [v]
 										//	ST(6)			ST(5)			ST(4)			ST(3)			ST(2)			ST(1)			ST
@@ -271,14 +589,62 @@ inline void Normalize( float v[3] )
 		fmul							//																	v2*(1.0/len)	v1*(1.0/len)	v0*(1.0/len)
 		fstp	dword ptr [esi]			//																					v2*(1.0/len)	v1*(1.0/len)
 		fstp	dword ptr [esi+04h]		//																									v2*(1.0/len)
-		fstp	dword ptr [esi+08h]		//																									
+		fstp	dword ptr [esi+08h]		//
 End:
 		finit
 	}
+#else // !__LINUX__
+# ifdef X86_ASM
+	__asm__ __volatile__(
+	".intel_syntax noprefix"			"\n\t"
+	"	fld		dword ptr [esi+0x08]"	"\n\t"
+	"	fld		dword ptr [esi+0x04]"	"\n\t"
+	"	fld		dword ptr [esi]"		"\n\t"
+	"	fld1"							"\n\t"
+	"	fld		ST(3)"					"\n\t"
+	"	fmul	ST, ST"					"\n\t"
+	"	fld		ST(3)"					"\n\t"
+	"	fmul	ST, ST"					"\n\t"
+	"	fld		ST(3)"					"\n\t"
+	"	fmul	ST, ST"					"\n\t"
+	"	fadd"							"\n\t"
+	"	fadd"							"\n\t"
+	"	ftst"							"\n\t"
+	"	fstsw	ax"						"\n\t"
+	"	sahf"							"\n\t"
+	"	jz		End"					"\n\t"
+	"	fsqrt"							"\n\t"
+	"	fdiv"							"\n\t"
+	"	fmul	ST(3), ST"				"\n\t"
+	"	fmul	ST(2), ST"				"\n\t"
+	"	fmul"							"\n\t"
+	"	fstp	dword ptr [esi]"		"\n\t"
+	"	fstp	dword ptr [esi+0x04]"	"\n\t"
+	"	fstp	dword ptr [esi+0x08]"	"\n\t"
+	"End:"								"\n\t"
+	"	finit"							"\n\t"
+	".att_syntax prefix"				"\n\t"
+	: /* no output */
+	: "S"(v)
+	: "memory", "cc" );
+# else // X86_ASM
+	float len;
+
+	len = (float)(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
+	if (len != 0.0)
+	{
+		len = (float)sqrt( len );
+		v[0] /= (float)len;
+		v[1] /= (float)len;
+		v[2] /= (float)len;
+	}
+# endif // X86_ASM
+#endif // __LINUX__
 }
 
 inline void Normalize2D( float v[2] )
 {
+#ifndef __LINUX__
 	__asm {
 		mov		esi, dword ptr [v]
 
@@ -296,8 +662,46 @@ inline void Normalize2D( float v[2] )
 		fmul	ST(2), ST				//																	v1*(1.0/len)	v0				1.0/len
 		fmul							//																					v1*(1.0/len)	v0*(1.0/len)
 		fstp	dword ptr [esi]			//																									v1*(1.0/len)
-		fstp	dword ptr [esi+04h]		//																									
+		fstp	dword ptr [esi+04h]		//
 	}
+#else // !__LINUX__
+# ifdef X86_ASM
+	__asm__ __volatile__(
+	".intel_syntax noprefix"			"\n\t"
+	"	fld		dword ptr [esi+0x04]"	"\n\t"
+	"	fld		dword ptr [esi]"		"\n\t"
+	"	fld1"							"\n\t"
+	"	fld		ST(2)"					"\n\t"
+	"	fmul	ST, ST"					"\n\t"
+	"	fld		ST(2)"					"\n\t"
+	"	fmul	ST, ST"					"\n\t"
+	"	fadd"							"\n\t"
+	"	fsqrt"							"\n\t"
+	"	fdiv"							"\n\t"
+	"	fmul	ST(2), ST"				"\n\t"
+	"	fmul"							"\n\t"
+	"	fstp	dword ptr [esi]"		"\n\t"
+	"	fstp	dword ptr [esi+0x04]"	"\n\t"
+	".att_syntax prefix"				"\n\t"
+	: /* no output */
+	: "S"(v)
+	: "memory" );
+# else // X86_ASM
+	float len;
+
+	len = (float)sqrt( v[0]*v[0] + v[1]*v[1] );
+/*	if (len != 0.0)
+	{*/
+		v[0] /= len;
+		v[1] /= len;
+/*	}
+	else
+	{
+		v[0] = 0.0;
+		v[1] = 0.0;
+	}*/
+# endif // !X86_ASM
+#endif // __LINUX__
 }
 
 
@@ -402,6 +806,7 @@ inline void Normalize2D( float v[2] )
 inline float DotProduct( float v0[3], float v1[3] )
 {
 	float	dot;
+#ifndef __LINUX__
 	__asm {
 		mov		esi, dword ptr [v0]
 		mov		edi, dword ptr [v1]
@@ -417,6 +822,27 @@ inline float DotProduct( float v0[3], float v1[3] )
 		fadd
 		fstp	dword ptr [ebx]
 	}
+#else // !__LINUX__
+# ifdef X86_ASM
+	__asm__ __volatile__(
+	".intel_syntax noprefix"			"\n\t"
+	"	fld		dword ptr [esi]"		"\n\t"
+	"	fmul	dword ptr [edi]"		"\n\t"
+	"	fld		dword ptr [esi+0x04]"	"\n\t"
+	"	fmul	dword ptr [edi+0x04]"	"\n\t"
+	"	fld		dword ptr [esi+0x08]"	"\n\t"
+	"	fmul	dword ptr [edi+0x08]"	"\n\t"
+	"	fadd"							"\n\t"
+	"	fadd"							"\n\t"
+	"	fstp	dword ptr [ebx]"		"\n\t"
+	".att_syntax prefix"				"\n\t"
+	: /* no output */
+	: "S"(v0), "D"(v1), "b"(&dot)
+	: "memory" );
+# else // X86_ASM
+	dot = v0[0]*v1[0] + v0[1]*v1[1] + v0[2]*v1[2];
+# endif // !X86_ASM
+#endif // __LINUX__
 	return dot;
 }
 

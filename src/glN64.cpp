@@ -1,8 +1,12 @@
-#include <windows.h>
-#include <commctrl.h>
-#include <gl/gl.h>
-#include <gl/glu.h>
-#include <process.h>
+#ifndef __LINUX__
+# include <windows.h>
+# include <commctrl.h>
+# include <process.h>
+#else
+# include "winlnxdefs.h"
+#endif
+#include <GL/gl.h>
+#include <GL/glu.h>
 #include "glN64.h"
 #include "Debug.h"
 #include "Zilmar GFX 1.3.h"
@@ -15,17 +19,20 @@
 #include "Textures.h"
 #include "Combiner.h"
 
+#ifndef __LINUX__
 HWND		hWnd;
 HWND		hStatusBar;
 //HWND		hFullscreen;
 HWND		hToolBar;
 HINSTANCE	hInstance;
+#endif // !__LINUX__
 
-char		pluginName[] = "glN64 v0.4.1";
+char		pluginName[] = "glN64 v0.4.1-rc2";
 char		*screenDirectory;
 
 void (*CheckInterrupts)( void );
 
+#ifndef __LINUX__
 LONG		windowedStyle;
 LONG		windowedExStyle;
 RECT		windowedRect;
@@ -38,7 +45,9 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD dwReason, LPVOID lpvReserved)
 	if (dwReason == DLL_PROCESS_ATTACH)
 	{
 		Config_LoadConfig();
+#ifdef RSPTHREAD
 		RSP.thread = NULL;
+#endif
 		OGL.hRC = NULL;
 		OGL.hDC = NULL;
 /*		OGL.hPbufferRC = NULL;
@@ -48,6 +57,17 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD dwReason, LPVOID lpvReserved)
 	}
 	return TRUE;
 }
+#else
+void
+_init( void )
+{
+	Config_LoadConfig();
+	OGL.hScreen = NULL;
+# ifdef RSPTHREAD
+	RSP.thread = NULL;
+# endif
+}
+#endif // !__LINUX__
 
 EXPORT void CALL CaptureScreen ( char * Directory )
 {
@@ -130,7 +150,11 @@ EXPORT void CALL ChangeWindow (void)
 
 	SetEvent( RSP.threadMsg[RSPMSG_INITTEXTURES] );
 	WaitForSingleObject( RSP.threadFinished, INFINITE );
-#endif
+#else // RSPTHREAD
+# ifdef __LINUX__
+	SDL_WM_ToggleFullScreen( OGL.hScreen );
+# endif // __LINUX__
+#endif // !RSPTHREAD
 }
 
 EXPORT void CALL CloseDLL (void)
@@ -139,7 +163,11 @@ EXPORT void CALL CloseDLL (void)
 
 EXPORT void CALL DllAbout ( HWND hParent )
 {
+#ifndef __LINUX__
 	MessageBox( hParent, "glN64 v0.4 by Orkin\n\nWebsite: http://gln64.emulation64.com/\n\nThanks to Clements, Rice, Gonetz, Malcolm, Dave2001, cryhlove, icepir8, zilmar, Azimer, and StrmnNrmn", pluginName, MB_OK | MB_ICONINFORMATION );
+#else
+	puts( "glN64 v0.4 by Orkin\nWebsite: http://gln64.emulation64.com/\n\nThanks to Clements, Rice, Gonetz, Malcolm, Dave2001, cryhlove, icepir8, zilmar, Azimer, and StrmnNrmn\nported by blight" );
+#endif
 }
 
 EXPORT void CALL DllConfig ( HWND hParent )
@@ -164,6 +192,7 @@ EXPORT void CALL GetDllInfo ( PLUGIN_INFO * PluginInfo )
 	PluginInfo->MemoryBswaped = TRUE;
 }
 
+#ifndef __LINUX__
 BOOL CALLBACK FindToolBarProc( HWND hWnd, LPARAM lParam )
 {
 	if (GetWindowLong( hWnd, GWL_STYLE ) & RBS_VARHEIGHT)
@@ -173,15 +202,23 @@ BOOL CALLBACK FindToolBarProc( HWND hWnd, LPARAM lParam )
 	}
 	return TRUE;
 }
+#endif // !__LINUX__
 
 EXPORT BOOL CALL InitiateGFX (GFX_INFO Gfx_Info)
 {
+#ifndef __LINUX__
 	hWnd = Gfx_Info.hWnd;
 	hStatusBar = Gfx_Info.hStatusBar;
 	hToolBar = NULL;
 
 	EnumChildWindows( hWnd, FindToolBarProc,0 );
-
+#else // !__LINUX__
+	Config_LoadConfig();
+	OGL.hScreen = NULL;
+# ifdef RSPTHREAD
+	RSP.thread = NULL;
+# endif
+#endif // __LINUX__
 	DMEM = Gfx_Info.DMEM;
 	IMEM = Gfx_Info.IMEM;
 	RDRAM = Gfx_Info.RDRAM;
@@ -298,30 +335,33 @@ EXPORT void CALL RomClosed (void)
 EXPORT void CALL RomOpen (void)
 {
 #ifdef RSPTHREAD
+# ifndef __LINUX__
 	DWORD threadID;
 	int i;
 
 	// Create RSP message events
-	for (i = 0; i < 6; i++) 
-	{ 
+	for (i = 0; i < 6; i++)
+	{
 		RSP.threadMsg[i] = CreateEvent( NULL, FALSE, FALSE, NULL );
 		if (RSP.threadMsg[i] == NULL)
-		{ 
+		{
 			MessageBox( hWnd, "Error creating video thread message events, closing video thread...", "glN64 Error", MB_OK | MB_ICONERROR );
 			return;
-		} 
-	} 
+		}
+	}
 
 	// Create RSP finished event
 	RSP.threadFinished = CreateEvent( NULL, FALSE, FALSE, NULL );
 	if (RSP.threadFinished == NULL)
-	{ 
+	{
 		MessageBox( hWnd, "Error creating video thread finished event, closing video thread...", "glN64 Error", MB_OK | MB_ICONERROR );
 		return;
-	} 
+	}
 
 	RSP.thread = CreateThread( NULL, 4096, RSP_ThreadProc, NULL, NULL, &threadID );
 	WaitForSingleObject( RSP.threadFinished, INFINITE );
+# else // !__LINUX__
+# endif // __LINUX__
 #else
 	RSP_Init();
 #endif
@@ -357,3 +397,10 @@ EXPORT void CALL ViStatusChanged (void)
 EXPORT void CALL ViWidthChanged (void)
 {
 }
+
+
+EXPORT void CALL ReadScreen (void **dest, long *width, long *height)
+{
+	OGL_ReadScreen( dest, width, height );
+}
+

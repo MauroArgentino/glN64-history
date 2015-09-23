@@ -1,10 +1,18 @@
 #ifndef OPENGL_H
 #define OPENGL_H
 
-#include <windows.h>
-#include <gl/gl.h>
-#include "glext.h"
-#include "wglext.h"
+#ifndef __LINUX__
+# include <windows.h>
+# include <GL/gl.h>
+# include "wglext.h"
+# include "glext.h"
+#else
+# include "winlnxdefs.h"
+# include <GL/gl.h>
+# include <GL/glext.h>
+# include "SDL.h"
+#endif // __LINUX__
+
 #include "glATI.h"
 #include "gSP.h"
 
@@ -21,10 +29,14 @@ struct GLVertex
 
 struct GLInfo
 {
+#ifndef __LINUX__
 	HGLRC	hRC, hPbufferRC;
 	HDC		hDC, hPbufferDC;
 	HWND	hWnd;
 	HPBUFFERARB	hPbuffer;
+#else
+	SDL_Surface *hScreen;
+#endif // __LINUX__
 
 	DWORD	fullscreenWidth, fullscreenHeight, fullscreenBits, fullscreenRefresh;
 	DWORD	width, height, windowedWidth, windowedHeight, heightOffset;
@@ -63,8 +75,9 @@ struct GLInfo
 	BYTE	triangles[80][3];
 	BYTE	numTriangles;
 	BYTE	numVertices;
+#ifndef __LINUX__
 	HWND	hFullscreenWnd;
-
+#endif
 	BOOL	usePolygonStipple;
 	GLubyte	stipplePattern[32][8][128];
 	BYTE	lastStipple;
@@ -79,6 +92,7 @@ struct GLcolor
 	float r, g, b, a;
 };
 
+#ifndef __LINUX__
 extern PFNGLCOMBINERPARAMETERFVNVPROC glCombinerParameterfvNV;
 extern PFNGLCOMBINERPARAMETERFNVPROC glCombinerParameterfNV;
 extern PFNGLCOMBINERPARAMETERIVNVPROC glCombinerParameterivNV;
@@ -131,6 +145,7 @@ extern PFNWGLQUERYPBUFFERARBPROC wglQueryPbufferARB;
 extern PFNWGLGETPIXELFORMATATTRIBIVARBPROC wglGetPixelFormatAttribivARB;
 extern PFNWGLGETPIXELFORMATATTRIBFVARBPROC wglGetPixelFormatAttribfvARB;
 extern PFNWGLCHOOSEPIXELFORMATARBPROC wglChoosePixelFormatARB;
+#endif // !__LINUX__
 
 bool OGL_Start();
 void OGL_Stop();
@@ -144,4 +159,9 @@ void OGL_ClearDepthBuffer();
 void OGL_ClearColorBuffer( float *color );
 void OGL_ResizeWindow();
 void OGL_SaveScreenshot();
+#ifdef __LINUX__
+void OGL_SwapBuffers();
+#endif // __LINUX__
+void OGL_ReadScreen( void **dest, long *width, long *height );
+
 #endif

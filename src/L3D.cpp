@@ -54,3 +54,4 @@ void L3D_Init()
 	GBI_SetGBI( G_RDPHALF_CONT,			F3D_RDPHALF_CONT,		F3D_RDPHalf_Cont );
 //	GBI_SetGBI( G_TRI4,					F3D_TRI4,				F3D_Tri4 );
 }
+

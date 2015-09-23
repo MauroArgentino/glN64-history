@@ -1,4 +1,11 @@
-#include <windows.h>
+#if !defined( DEBUG_H ) && defined( _DEBUG )
+#define DEBUG_H
+
+#ifndef __LINUX__
+# include <windows.h>
+#else
+# include "winlnxdefs.h"
+#endif
 #include <stdio.h>
 
 #define		DEBUG_LOW		0x1000
@@ -35,3 +42,5 @@ void DebugRSPState( DWORD pci, DWORD pc, DWORD cmd, DWORD w0, DWORD w1 );
 void DebugMsg( WORD type, LPCSTR format, ... );
 void StartDump( char *filename );
 void EndDump();
+
+#endif // DEBUG_H

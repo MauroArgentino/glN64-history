@@ -1,4 +1,8 @@
-#include <windows.h>
+#ifndef __LINUX__
+# include <windows.h>
+#else
+# include "winlnxdefs.h"
+#endif
 #include "OpenGL.h"
 #include "Combiner.h"
 #include "texture_env.h"

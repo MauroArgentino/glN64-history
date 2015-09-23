@@ -260,8 +260,18 @@ EXPORT void CALL ViStatusChanged (void);
             ViWidth registers value has been changed.
   input:    none
   output:   none
-*******************************************************************/ 
+*******************************************************************/
 EXPORT void CALL ViWidthChanged (void);
+
+/******************************************************************
+  Function: ReadScreen
+  Purpose:  Capture the current screen
+  Input:    none
+  Output:   dest - 24-bit RGB data (flipped horizontally)
+            width - width of image
+            height - height of image
+ ******************************************************************/
+EXPORT void CALL ReadScreen (void **dest, long *width, long *height);
 
 #if defined(__cplusplus)
 }

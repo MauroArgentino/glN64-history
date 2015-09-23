@@ -14,7 +14,14 @@
 #include "S2DEX.h"
 #include "VI.h"
 #include "DepthBuffer.h"
-#include "Resource.h"
+#ifndef __LINUX__
+# include "Resource.h"
+#endif // !__LINUX__
+
+#ifdef DEBUG
+extern u32 uc_crc, uc_dcrc;
+extern char uc_str[256];
+#endif
 
 #define gSPFlushTriangles() \
 	if ((OGL.numTriangles > 0) && \
@@ -57,7 +64,11 @@ void gSPLoadUcodeEx( u32 uc_start, u32 uc_dstart, u16 uc_dsize )
 	if (ucode->type != NONE)
 		GBI_MakeCurrent( ucode );
 	else
+#ifdef RSPTHREAD
 		SetEvent( RSP.threadMsg[RSPMSG_CLOSE] );
+#else
+		puts( "Warning: Unknown UCODE!!!" );
+#endif
 
 #ifdef DEBUG
 	DebugMsg( DEBUG_HIGH | DEBUG_ERROR, "// Unknown microcode: 0x%08X, 0x%08X, %s\n", uc_crc, uc_dcrc, uc_str );
