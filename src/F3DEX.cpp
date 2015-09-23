@@ -599,7 +599,7 @@ void F3DEX_MoveWord()
 	switch (index)
 	{
 		case F3DEX_MOVEWORD_SEGMENT:
-			RSP.segment[(offset >> 2) & 0xF] = data;
+			RSP.segment[(offset >> 2) & 0xF] = data & 0x00FFFFFF;
 
 #ifdef DEBUG
 			DebugMsg( DEBUG_HANDLED, "0x%08X: 0x%08X 0x%08X F3DEX_MoveWord\r\n", RSP.PC[RSP.PCi], RSP.cmd0, RSP.cmd1 );
@@ -608,12 +608,12 @@ void F3DEX_MoveWord()
 			break;
 
 		case F3DEX_MOVEWORD_FOG:
-			RSP.fogMultiplier = (float)(SHORT)(RSP.cmd1 >> 16);
-			RSP.fogOffset = (float)(SHORT)(RSP.cmd1 & 0xFFFF);
+			RSP.fogMultiplier = (float)(SHORT)(data >> 16);
+			RSP.fogOffset = (float)(SHORT)(data & 0xFFFF);
 			break; 
 
 		case F3DEX_MOVEWORD_NUMLIGHT:
-			RSP.numLights = (BYTE)(((RSP.cmd1 >> 5) & 0x1F) - 1);
+			RSP.numLights = (BYTE)(((RSP.cmd1 & 0xFFFF) >> 5) - 1) & 0x7;
 
 #ifdef DEBUG
 			DebugMsg( DEBUG_HANDLED, "0x%08X: 0x%08X 0x%08X F3DEX_MoveWord\r\n", RSP.PC[RSP.PCi], RSP.cmd0, RSP.cmd1 );

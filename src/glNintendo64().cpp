@@ -17,7 +17,7 @@ HWND		hStatusBar;
 HWND		hFullscreen;
 HINSTANCE	hInstance;
 
-char		pluginName[] = "glNintendo64() v0.3";
+char		pluginName[] = "glNintendo64() v0.3.1";
 
 void (*CheckInterrupts)( void );
 
@@ -197,7 +197,7 @@ EXPORT void CALL CloseDLL (void)
 
 EXPORT void CALL DllAbout ( HWND hParent )
 {
-	MessageBox( hParent, "glNintendo64() v0.3 by Orkin", pluginName, MB_OK );
+	MessageBox( hParent, "glNintendo64() v0.3.1 by Orkin\n\nWebsite: http://gln64.emulation64.com/", pluginName, MB_OK );
 }
 
 EXPORT void CALL DllConfig ( HWND hParent )

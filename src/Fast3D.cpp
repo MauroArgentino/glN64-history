@@ -479,7 +479,7 @@ void Fast3D_MoveWord()
 			break;
 
 		case FAST3D_MOVEWORD_NUMLIGHT:
-			RSP.numLights = (BYTE)(((data >> 5) & 0x1F) - 1);
+			RSP.numLights = (BYTE)(((RSP.cmd1 & 0xFFFF) >> 5) - 1) & 0x7;
 
 #ifdef DEBUG
 			DebugMsg( DEBUG_HANDLED, "0x%08X: 0x%08X 0x%08X Fast3D_MoveWord\r\n", RSP.PC[RSP.PCi], RSP.cmd0, RSP.cmd1 );

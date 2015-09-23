@@ -493,8 +493,8 @@ void TextureCache_ActivateTexture( BYTE t )
 	else
 		cache.current[t]->realHeight = pow2( height );
 
-	cache.current[t]->scaleS = 1.0f / (float)cache.current[t]->realWidth;
-	cache.current[t]->scaleT = 1.0f / (float)cache.current[t]->realHeight;
+	cache.current[t]->scaleS = 1.0f / (float)(cache.current[t]->realWidth);
+	cache.current[t]->scaleT = 1.0f / (float)(cache.current[t]->realHeight);
 
 	cache.current[t]->offsetScaleS = cache.current[t]->scaleS;
 	cache.current[t]->offsetScaleT = cache.current[t]->scaleT;
